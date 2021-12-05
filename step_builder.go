@@ -142,7 +142,7 @@ func (builder *stepBuilder) Reader(reader interface{}) *stepBuilder {
 	case Reader:
 		builder.reader = r
 	case ItemReader:
-		builder.reader = &defaultItemReader{
+		builder.reader = defaultItemReader{
 			itemReader: r,
 		}
 	default:

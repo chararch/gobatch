@@ -49,8 +49,31 @@ func (ctx *BatchContext) GetInt(key string, def ...int) (int, error) {
 		return def[0], nil
 	}
 	if v != nil {
-		if r, ok := v.(int); ok {
+		switch r := v.(type) {
+		case int:
 			return r, nil
+		case int8:
+			return int(r), nil
+		case int16:
+			return int(r), nil
+		case int32:
+			return int(r), nil
+		case int64:
+			return int(r), nil
+		case uint:
+			return int(r), nil
+		case uint8:
+			return int(r), nil
+		case uint16:
+			return int(r), nil
+		case uint32:
+			return int(r), nil
+		case uint64:
+			return int(r), nil
+		case float32:
+			return int(r), nil
+		case float64:
+			return int(r), nil
 		}
 	}
 	return 0, errors.Errorf("value is nil or not int: %v", v)
@@ -62,8 +85,31 @@ func (ctx *BatchContext) GetInt64(key string, def ...int64) (int64, error) {
 		return def[0], nil
 	}
 	if v != nil {
-		if r, ok := v.(int64); ok {
-			return r, nil
+		switch r := v.(type) {
+		case int:
+			return int64(r), nil
+		case int8:
+			return int64(r), nil
+		case int16:
+			return int64(r), nil
+		case int32:
+			return int64(r), nil
+		case int64:
+			return int64(r), nil
+		case uint:
+			return int64(r), nil
+		case uint8:
+			return int64(r), nil
+		case uint16:
+			return int64(r), nil
+		case uint32:
+			return int64(r), nil
+		case uint64:
+			return int64(r), nil
+		case float32:
+			return int64(r), nil
+		case float64:
+			return int64(r), nil
 		}
 	}
 	return 0, errors.Errorf("value is nil or not int64: %v", v)

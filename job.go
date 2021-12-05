@@ -51,7 +51,7 @@ func (job *simpleJob) Start(ctx context.Context, execution *JobExecution) (err B
 			logger.Error(ctx, "save job execution failed, jobName:%v, JobExecution:%+v, err:%v", job.name, execution, err)
 		}
 	}()
-	logger.Info(ctx, "start job, jobName:%v, jobExecutionId:%v", job.name, execution.JobExecutionId)
+	logger.Info(ctx, "start running job, jobName:%v, jobExecutionId:%v", job.name, execution.JobExecutionId)
 	for _, listener := range job.listeners {
 		err = listener.BeforeJob(execution)
 		if err != nil {
@@ -99,7 +99,7 @@ func (job *simpleJob) Start(ctx context.Context, execution *JobExecution) (err B
 			break
 		}
 	}
-	logger.Info(ctx, "finish job, jobName:%v, jobExecutionId:%v, jobStatus:%v", job.name, execution.JobExecutionId, execution.JobStatus)
+	logger.Info(ctx, "finish job execution, jobName:%v, jobExecutionId:%v, jobStatus:%v", job.name, execution.JobExecutionId, execution.JobStatus)
 	return nil
 }
 
@@ -109,7 +109,7 @@ func execStep(ctx context.Context, step Step, execution *JobExecution) (err Batc
 			logger.Error(ctx, "error in step executing, jobExecutionId:%v, stepName:%v, err:%v", execution.JobExecutionId, step.Name(), err)
 		}
 	}()
-	lastStepExecution, er := findStepExecutionsByName(execution.JobExecutionId, step.Name())
+	lastStepExecution, er := findLastStepExecution(execution.JobInstanceId, step.Name())
 	if er != nil {
 		err = er
 		logger.Error(ctx, "find last StepExecution failed, jobExecutionId:%v, stepName:%v, err:%v", execution.JobExecutionId, step.Name(), er)
@@ -133,6 +133,7 @@ func execStep(ctx context.Context, step Step, execution *JobExecution) (err Batc
 	}
 	if lastStepExecution != nil {
 		stepExecution.StepContext.Merge(lastStepExecution.StepContext)
+		stepExecution.StepContextId = lastStepExecution.StepContextId
 		stepExecution.StepExecutionContext.Merge(lastStepExecution.StepExecutionContext)
 	}
 	e := saveStepExecution(ctx, stepExecution)

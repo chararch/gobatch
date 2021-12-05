@@ -49,32 +49,32 @@ func NewLogger(writer io.StringWriter, logLevel LogLevel) *defaultLogger {
 }
 
 func (l *defaultLogger) Debug(ctx context.Context, msg string, args ...interface{}) {
-	if l.logLevel >= Debug {
-		l.writer.WriteString(logBase(Debug) + fmt.Sprintf(msg, args...))
+	if Debug >= l.logLevel {
+		l.writer.WriteString(logBase(Debug) + fmt.Sprintf(msg, args...) + "\n")
 	}
 }
 
 func (l *defaultLogger) Info(ctx context.Context, msg string, args ...interface{}) {
-	if l.logLevel >= Info {
-		l.writer.WriteString(logBase(Info) + fmt.Sprintf(msg, args...))
+	if Info >= l.logLevel {
+		l.writer.WriteString(logBase(Info) + fmt.Sprintf(msg, args...) + "\n")
 	}
 }
 
 func (l *defaultLogger) Warn(ctx context.Context, msg string, args ...interface{}) {
-	if l.logLevel >= Warn {
-		l.writer.WriteString(logBase(Warn) + fmt.Sprintf(msg, args...))
+	if Warn >= l.logLevel {
+		l.writer.WriteString(logBase(Warn) + fmt.Sprintf(msg, args...) + "\n")
 	}
 }
 
 func (l *defaultLogger) Error(ctx context.Context, msg string, args ...interface{}) {
-	if l.logLevel >= Error {
-		l.writer.WriteString(logBase(Error) + fmt.Sprintf(msg, args...))
+	if Error >= l.logLevel {
+		l.writer.WriteString(logBase(Error) + fmt.Sprintf(msg, args...) + "\n")
 	}
 }
 
 var seperatorReg = regexp.MustCompile("[/\\\\]")
 func fileLine() string {
-	_, file, line, ok := runtime.Caller(2)
+	_, file, line, ok := runtime.Caller(3)
 	if ok {
 		idx := seperatorReg.FindAllStringIndex(file, -1)
 		if len(idx) > 0 {

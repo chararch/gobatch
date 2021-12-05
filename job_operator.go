@@ -75,7 +75,7 @@ func Start(ctx context.Context, jobName string, params string) (int64, error) {
 			JobStatus:      status.STARTING,
 			StepExecutions: make([]*StepExecution, 0),
 			JobContext:     NewBatchContext(),
-			StartTime:      time.Now(),
+			CreateTime:     time.Now(),
 		}
 		err = saveJobExecutions(execution)
 		if err != nil {
@@ -99,7 +99,7 @@ func parseJobParams(params string) (map[string]interface{}, error) {
 	if len(params) == 0 {
 		return ret, nil
 	}
-	err := util.ParseJson(params, ret)
+	err := util.ParseJson(params, &ret)
 	if err != nil {
 		return nil, err
 	}

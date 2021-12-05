@@ -18,4 +18,5 @@ type Writer interface {
 
 type Partitioner interface {
 	Partition(execution *StepExecution, partitions uint) (map[string]*StepExecution, BatchError)
+	GetPartitionNames(execution *StepExecution, partitions uint) []string
 }

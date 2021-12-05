@@ -29,6 +29,7 @@ type StepExecution struct {
 	StepName             string
 	StepStatus           status.BatchStatus
 	StepContext          *BatchContext
+	StepContextId        int64
 	StepExecutionContext *BatchContext
 	JobExecution         *JobExecution
 	CreateTime           time.Time
@@ -68,6 +69,7 @@ func (execution *StepExecution) deepCopy() *StepExecution {
 		StepName:             execution.StepName,
 		StepStatus:           status.STARTING,
 		StepContext:          execution.StepContext.DeepCopy(),
+		StepContextId:        execution.StepContextId,
 		StepExecutionContext: execution.StepExecutionContext.DeepCopy(),
 		JobExecution:         execution.JobExecution,
 		CreateTime:           time.Now(),

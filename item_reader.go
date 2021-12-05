@@ -114,7 +114,7 @@ func (p *defaultPartitioner) Partition(execution *StepExecution, partitions uint
 		partitionSize = p.minPartitionSize
 	}
 	i := 0
-	for start, end := 0, int(partitionSize); start < count; start = end {
+	for start, end := 0, int(partitionSize); start < count; start, end = end, end+int(partitionSize) {
 		if end > count {
 			end = count
 		}
@@ -122,6 +122,7 @@ func (p *defaultPartitioner) Partition(execution *StepExecution, partitions uint
 		partitionKeys := keys[start:end]
 		subExecution := execution.deepCopy()
 		subExecution.StepName = partitionName
+		subExecution.StepContextId = 0
 		subExecution.StepContext.Put(ItemReaderKeyList, partitionKeys)
 		subExecution.StepExecutionContext.Put(ItemReaderCurrentIndex, 0)
 		subExecution.StepExecutionContext.Put(ItemReaderMaxIndex, len(partitionKeys))
@@ -129,4 +130,13 @@ func (p *defaultPartitioner) Partition(execution *StepExecution, partitions uint
 		i++
 	}
 	return subExecutions, nil
+}
+
+func (p *defaultPartitioner) GetPartitionNames(execution *StepExecution, partitions uint) []string {
+	names := make([]string, 0)
+	for i := uint(0); i < partitions; i++ {
+		partitionName := fmt.Sprintf("%s:%04d", execution.StepName, i)
+		names = append(names, partitionName)
+	}
+	return names
 }
