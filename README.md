@@ -1,2 +1,2 @@
 # gobatch
-a batch processing framework in golang like spring-batch in java
+a batch processing framework in Go like Spring Batch in Java
