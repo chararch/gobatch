@@ -5,7 +5,6 @@ import (
 	"chararch/gobatch/util"
 	"context"
 	"fmt"
-	"github.com/pkg/errors"
 	"reflect"
 	"runtime/debug"
 	"time"
@@ -108,7 +107,7 @@ func execEnd(ctx context.Context, execution *StepExecution, err BatchError, reco
 	if recoverErr != nil {
 		logger.Error(ctx, "panic in step executing, jobExecutionId:%v, stepName:%v, err:%v, stack:%v", execution.JobExecution.JobExecutionId, execution.StepName, recoverErr, debug.Stack())
 		execution.StepStatus = status.FAILED
-		execution.FailError = errors.Errorf("step execution error:%+v", recoverErr)
+		execution.FailError = NewBatchError(ErrCodeGeneral, "panic in step execution", recoverErr)
 		execution.EndTime = time.Now()
 	}
 	if err != nil && execution.StepStatus != status.FAILED && execution.StepStatus != status.UNKNOWN {
@@ -281,12 +280,12 @@ func (step *chunkStep) Exec(ctx context.Context, execution *StepExecution) (err 
 func (step *chunkStep) doOpenIfNecessary(execution *StepExecution) BatchError {
 	if rc, ok := step.reader.(OpenCloser); ok {
 		if err := rc.Open(execution); err != nil {
-			return NewBatchError(ErrCodeGeneral, err)
+			return NewBatchError(ErrCodeGeneral, "open reader:%T failed", step.reader, err)
 		}
 	}
 	if wc, ok := step.writer.(OpenCloser); ok {
 		if err := wc.Open(execution); err != nil {
-			return NewBatchError(ErrCodeGeneral, err)
+			return NewBatchError(ErrCodeGeneral, "open writer:%T failed", step.writer, err)
 		}
 	}
 	return nil
@@ -295,12 +294,12 @@ func (step *chunkStep) doOpenIfNecessary(execution *StepExecution) BatchError {
 func (step *chunkStep) doCloseIfNecessary(execution *StepExecution) BatchError {
 	if rc, ok := step.reader.(OpenCloser); ok {
 		if err := rc.Close(execution); err != nil {
-			return NewBatchError(ErrCodeGeneral, err)
+			return NewBatchError(ErrCodeGeneral, "close reader:%T failed", step.reader, err)
 		}
 	}
 	if wc, ok := step.writer.(OpenCloser); ok {
 		if err := wc.Close(execution); err != nil {
-			return NewBatchError(ErrCodeGeneral, err)
+			return NewBatchError(ErrCodeGeneral, "close writer:%T failed", step.writer, err)
 		}
 	}
 	return nil
@@ -309,8 +308,8 @@ func (step *chunkStep) doCloseIfNecessary(execution *StepExecution) BatchError {
 func (step *chunkStep) doChunk(ctx context.Context, chunk *ChunkContext, input *chunk, output *chunk) (err BatchError) {
 	defer func() {
 		if er := recover(); er != nil {
-			logger.Error(ctx, "panic in chunk executing, jobExecutionId:%v, stepName:%v, err:%v, stack:%v", chunk.StepExecution.JobExecution.JobExecutionId, chunk.StepExecution.StepName, er, debug.Stack())
-			err = NewBatchError(ErrCodeGeneral, er)
+			logger.Error(ctx, "panic on chunk executing, jobExecutionId:%v, stepName:%v, err:%v, stack:%v", chunk.StepExecution.JobExecution.JobExecutionId, chunk.StepExecution.StepName, er, debug.Stack())
+			err = NewBatchError(ErrCodeGeneral, "panic on chunk executing, jobExecutionId:%v, stepName:%v", chunk.StepExecution.JobExecution.JobExecutionId, chunk.StepExecution.StepName, er)
 		}
 	}()
 	logger.Debug(ctx, "doChunk start, jobExecutionId:%v, stepName:%v", chunk.StepExecution.JobExecution.JobExecutionId, chunk.StepExecution.StepName)
@@ -499,7 +498,7 @@ func (step *partitionStep) Exec(ctx context.Context, execution *StepExecution) (
 		if err2 != nil {
 			logger.Error(ctx, "sub-step execute failed, jobExecutionId:%v, sub-step name:%v, err:%v", subExecutions[i].JobExecution.JobExecutionId, subExecutions[i].StepName, err2)
 			if subExecutions[i].StepStatus != status.FAILED {
-				subExecutions[i].finish(err2)
+				subExecutions[i].finish(NewBatchError(ErrCodeGeneral, "sub-step execution error", err2))
 			}
 		} else {
 			if subExecutions[i].StepStatus == status.STARTED {
@@ -531,7 +530,7 @@ func (step *partitionStep) split(ctx context.Context, execution *StepExecution, 
 	if execution.StepExecutionContext.Exists("gobatch.partitionStep.partitions") {
 		savedPartitions, e := execution.StepExecutionContext.GetInt("gobatch.partitionStep.partitions", int(partitions))
 		if e != nil {
-			return nil, NewBatchError(ErrCodeGeneral, e)
+			return nil, NewBatchError(ErrCodeGeneral, "get 'gobatch.partitionStep.partitions' from step[%v] execution context failed", step.Name(), e)
 		}
 		subExecutions := make([]*StepExecution, 0, savedPartitions)
 		partitionNames := step.partitioner.GetPartitionNames(execution, uint(savedPartitions))
@@ -544,7 +543,7 @@ func (step *partitionStep) split(ctx context.Context, execution *StepExecution, 
 			if lastStepExecution != nil {
 				if util.In(lastStepExecution.StepStatus, []interface{}{status.STARTING, status.STARTED, status.STOPPING, status.UNKNOWN}) {
 					logger.Error(ctx, "last StepExecution is in progress or terminated abnormally, jobExecutionId:%v, stepName:%v", execution.JobExecution.JobExecutionId, step.Name())
-					return nil, ConcurrentError
+					return nil, NewBatchError(ErrCodeGeneral, "last StepExecution is in progress or terminated abnormally, jobExecutionId:%v, stepName:%v", execution.JobExecution.JobExecutionId, step.Name())
 				}
 				if lastStepExecution.StepStatus == status.COMPLETED {
 					continue

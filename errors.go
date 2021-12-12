@@ -1,35 +1,95 @@
 package gobatch
 
-import "fmt"
+import (
+	"fmt"
+	"github.com/pkg/errors"
+	"io"
+)
 
 type BatchError interface {
 	Code() string
 	Message() string
 	Error() string
+	StackTrace() string
 }
 
-type batchErr struct {
+type stackTracer interface {
+	StackTrace() errors.StackTrace
+}
+type causer interface {
+	Cause() error
+}
+
+type batchError struct {
 	code string
-	msg  string
+	msg string
+	err  error
 }
 
-func (err *batchErr) Code() string {
+func (err *batchError) Code() string {
 	return err.code
 }
 
-func (err *batchErr) Message() string {
+func (err *batchError) Message() string {
 	return err.msg
 }
 
-func (err *batchErr) Error() string {
-	return fmt.Sprintf("batch err, code:%v, message:%v", err.code, err.msg)
+func (err *batchError) Error() string {
+	if err.err.Error() == "" {
+		return fmt.Sprintf("BatchError[%s]: %v", err.code, err.msg)
+	}
+	return fmt.Sprintf("BatchError[%s]: %v cause: %v", err.code, err.msg, err.err)
 }
 
-func NewBatchError(code string, err interface{}) BatchError {
-	if e, ok := err.(BatchError); ok {
-		return e
+func (err *batchError) StackTrace() string {
+	return fmt.Sprintf("%+v", err)
+}
+
+func (err *batchError) Format(s fmt.State, verb rune) {
+	switch verb {
+	case 'v':
+		if s.Flag('+') {
+			if e, ok := err.err.(causer); ok {
+				fmt.Fprintf(s, "%+v\n", e.Cause())
+			}
+			fmt.Fprintf(s, "BatchError[%s]: %v", err.code, err.msg)
+			if st, ok := err.err.(stackTracer); ok {
+				traces := st.StackTrace()
+				if len(traces) > 0 {
+					traces = traces[1:]
+				}
+				for _, t := range traces {
+					fmt.Fprintf(s, "\n%+v", t)
+				}
+			}
+			return
+		}
+		fallthrough
+	case 's':
+		io.WriteString(s, err.Error())
+	case 'q':
+		fmt.Fprintf(s, "%q", err.Error())
 	}
-	return &batchErr{code: code, msg: fmt.Sprintf("%v", err)}
+}
+
+func NewBatchError(code string, msg string, args ...interface{}) BatchError {
+	var err error
+	if len(args) > 0 {
+		lastArg := args[len(args)-1]
+		if e, ok := lastArg.(error); ok {
+			args = args[0:len(args)-1]
+			if len(args) > 0 {
+				msg = fmt.Sprintf(msg, args)
+			}
+			err = errors.WithStack(e)
+		} else {
+			msg = fmt.Sprintf(msg, args)
+			err = errors.New("")
+		}
+	} else {
+		err = errors.New("")
+	}
+	return &batchError{code: code, msg: msg, err: err}
 }
 
 const (
@@ -38,11 +98,4 @@ const (
 	ErrCodeConcurrency = "concurrency"
 	ErrCodeDbFail      = "db_fail"
 	ErrCodeGeneral     = "general"
-)
-
-var (
-	RetryError      BatchError = &batchErr{code: ErrCodeRetry, msg: "should retry"}
-	StopError       BatchError = &batchErr{code: ErrCodeStop, msg: "job stopping"}
-	ConcurrentError BatchError = &batchErr{code: ErrCodeConcurrency, msg: "concurrency error"}
-	DbError         BatchError = &batchErr{code: ErrCodeDbFail, msg: "db fail"}
 )

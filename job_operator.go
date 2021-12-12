@@ -77,7 +77,7 @@ func Start(ctx context.Context, jobName string, params string) (int64, error) {
 			JobContext:     NewBatchContext(),
 			CreateTime:     time.Now(),
 		}
-		err = saveJobExecutions(execution)
+		err = saveJobExecution(execution)
 		if err != nil {
 			logger.Error(ctx, "save job execution failed, jobName:%v, JobExecution:%+v, err:%v", jobName, execution, err)
 			return -1, err

@@ -16,7 +16,7 @@ type JobExecution struct {
 	CreateTime     time.Time
 	StartTime      time.Time
 	EndTime        time.Time
-	FailError      error
+	FailError      BatchError
 	Version        int64
 }
 
@@ -43,12 +43,12 @@ type StepExecution struct {
 	WriteSkipCount       int64
 	ProcessSkipCount     int64
 	RollbackCount        int64
-	FailError            error
+	FailError            BatchError
 	LastUpdated          time.Time
 	Version              int64
 }
 
-func (execution *StepExecution) finish(err error) {
+func (execution *StepExecution) finish(err BatchError) {
 	if err != nil {
 		execution.StepStatus = status.FAILED
 		execution.FailError = err

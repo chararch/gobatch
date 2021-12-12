@@ -33,12 +33,12 @@ func (reader defaultItemReader) Open(execution *StepExecution) BatchError {
 	if keyList != nil {
 		kind := reflect.TypeOf(keyList).Kind()
 		if kind != reflect.Slice {
-			return NewBatchError(ErrCodeGeneral, errors.Errorf("the type of key list in context must be slice, but the actual is: %v", kind))
+			return NewBatchError(ErrCodeGeneral, "the type of key list in context must be slice, but the actual is: %v", kind)
 		}
 	} else {
 		keys, err := reader.itemReader.ReadKeys()
 		if err != nil {
-			return NewBatchError(ErrCodeGeneral, err)
+			return NewBatchError(ErrCodeGeneral, "ReadKeys() err", err)
 		}
 		stepCtx.Put(ItemReaderKeyList, keys)
 		executionCtx.Put(ItemReaderCurrentIndex, 0)
@@ -50,7 +50,7 @@ func (reader defaultItemReader) Open(execution *StepExecution) BatchError {
 func (reader defaultItemReader) Read(chunkCtx *ChunkContext) (r interface{}, e BatchError) {
 	defer func() {
 		if err := recover(); err != nil {
-			e = NewBatchError(ErrCodeGeneral, errors.Errorf("error on Read in item reader, err:%v", err))
+			e = NewBatchError(ErrCodeGeneral, "panic on Read() in item reader, err:%v", err)
 		}
 	}()
 	stepCtx := chunkCtx.StepExecution.StepContext
@@ -68,7 +68,7 @@ func (reader defaultItemReader) Read(chunkCtx *ChunkContext) (r interface{}, e B
 			err = errors.New("no ItemReader is specified")
 		}
 		if err != nil {
-			return nil, NewBatchError(ErrCodeGeneral, err)
+			return nil, NewBatchError(ErrCodeGeneral, "read item error", err)
 		}
 		executionCtx.Put(ItemReaderCurrentIndex, currentIndex+1)
 		return item, nil
@@ -94,12 +94,12 @@ type defaultPartitioner struct {
 func (p *defaultPartitioner) Partition(execution *StepExecution, partitions uint) (subExecutions map[string]*StepExecution, e BatchError) {
 	defer func() {
 		if err := recover(); err != nil {
-			e = NewBatchError(ErrCodeGeneral, errors.Errorf("error on Read in item reader, err:%v", err))
+			e = NewBatchError(ErrCodeGeneral, "panic on Partition in defaultPartitioner, err:%v", err)
 		}
 	}()
 	keys, err := p.itemReader.ReadKeys()
 	if err != nil {
-		return nil, NewBatchError(ErrCodeGeneral, err)
+		return nil, NewBatchError(ErrCodeGeneral, "ReadKeys() err", err)
 	}
 	subExecutions = make(map[string]*StepExecution)
 	count := len(keys)

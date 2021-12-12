@@ -76,7 +76,7 @@ func (builder *stepBuilder) Handler(handler interface{}) *stepBuilder {
 				case BatchError:
 					return et
 				default:
-					return NewBatchError(ErrCodeGeneral, e)
+					return NewBatchError(ErrCodeGeneral, "execute step[%v] error", execution.StepName, e)
 				}
 			}
 			return nil
