@@ -24,6 +24,14 @@ func Unregister(job Job) {
 }
 
 func Start(ctx context.Context, jobName string, params string) (int64, error) {
+	return doStart(ctx, jobName, params, false)
+}
+
+func StartAsync(ctx context.Context, jobName string, params string) (int64, error) {
+	return doStart(ctx, jobName, params, true)
+}
+
+func doStart(ctx context.Context, jobName string, params string, async bool) (int64, error) {
 	if job, ok := jobRegistry[jobName]; ok {
 		jobParams, err := parseJobParams(params)
 		if err != nil {
@@ -82,12 +90,20 @@ func Start(ctx context.Context, jobName string, params string) (int64, error) {
 			logger.Error(ctx, "save job execution failed, jobName:%v, JobExecution:%+v, err:%v", jobName, execution, err)
 			return -1, err
 		}
-		jobPool.Submit(ctx, func() (interface{}, error) {
+		future := jobPool.Submit(ctx, func() (interface{}, error) {
 			er := job.Start(ctx, execution)
 			return nil, er
 		})
 		logger.Info(ctx, "job started, jobName:%v, jobExecutionId:%v", jobName, execution.JobExecutionId)
-		return execution.JobExecutionId, nil
+		if async {
+			return execution.JobExecutionId, nil
+		} else {
+			if _, er := future.Get(); er != nil {
+				return execution.JobExecutionId, er
+			} else {
+				return execution.JobExecutionId, nil
+			}
+		}
 	} else {
 		logger.Error(ctx, "can not find job with name[%v]", jobName)
 		return -1, errors.Errorf("can not find job with name[%v]", jobName)
@@ -160,6 +176,14 @@ func Stop(ctx context.Context, jobId interface{}) error {
 }
 
 func Restart(ctx context.Context, jobId interface{}) (int64, error) {
+	return doRestart(ctx, jobId, false)
+}
+
+func RestartAsync(ctx context.Context, jobId interface{}) (int64, error) {
+	return doRestart(ctx, jobId, true)
+}
+
+func doRestart(ctx context.Context, jobId interface{}, async bool) (int64, error) {
 	//find executions, ensure no running instance and then start
 	switch id := jobId.(type) {
 	case string:
@@ -171,9 +195,9 @@ func Restart(ctx context.Context, jobId interface{}) (int64, error) {
 				return -1, err
 			}
 			if jobInstance != nil {
-				return Start(ctx, job.Name(), jobInstance.JobParams)
+				return doStart(ctx, job.Name(), jobInstance.JobParams, async)
 			} else {
-				return Start(ctx, job.Name(), "")
+				return doStart(ctx, job.Name(), "", async)
 			}
 		} else {
 			logger.Error(ctx, "can not find job with name[%v]", id)
@@ -192,7 +216,7 @@ func Restart(ctx context.Context, jobId interface{}) (int64, error) {
 		}
 		if job, ok := jobRegistry[execution.JobName]; ok {
 			params, _ := util.JsonString(execution.JobParams)
-			return Start(ctx, job.Name(), params)
+			return doStart(ctx, job.Name(), params, async)
 		} else {
 			logger.Error(ctx, "can not find job with name[%v]", execution.JobName)
 			return -1, errors.Errorf("can not find job with name[%v]", execution.JobName)

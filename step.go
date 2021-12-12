@@ -62,7 +62,7 @@ func (step *simpleStep) Exec(ctx context.Context, execution *StepExecution) (err
 	defer func() {
 		err = execEnd(ctx, execution, err, recover())
 	}()
-	logger.Info(ctx, "step execute start, jobExecutionId:%v, stepName:%v", execution.JobExecution.JobExecutionId, step.Name())
+	logger.Info(ctx, "step execute start, jobExecutionId:%v, stepName:%v", execution.JobExecution.JobExecutionId, execution.StepName)
 	for _, listener := range step.listeners {
 		err = listener.BeforeStep(execution)
 		if err != nil {
@@ -99,7 +99,7 @@ func (step *simpleStep) Exec(ctx context.Context, execution *StepExecution) (err
 			break
 		}
 	}
-	logger.Info(ctx, "step execute finish, jobExecutionId:%v, stepName:%v, stepStatus:%v", execution.JobExecution.JobExecutionId, step.Name(), execution.StepStatus)
+	logger.Info(ctx, "step execute finish, jobExecutionId:%v, stepName:%v, stepStatus:%v", execution.JobExecution.JobExecutionId, execution.StepName, execution.StepStatus)
 	return nil
 }
 
@@ -251,7 +251,7 @@ func (step *chunkStep) Exec(ctx context.Context, execution *StepExecution) (err 
 				logger.Error(ctx, "save step execution failed, jobExecutionId:%v, stepName:%v, execution:%+v, err:%v", execution.JobExecution.JobExecutionId, execution.StepName, execution, e)
 			}
 			break
-		} else {
+		} else if len(input.items) > 0 {
 			execution.ReadCount += int64(len(input.items))
 			execution.WriteCount += int64(len(output.items))
 			execution.FilterCount += int64(len(input.skipItems))
@@ -273,7 +273,7 @@ func (step *chunkStep) Exec(ctx context.Context, execution *StepExecution) (err 
 			break
 		}
 	}
-	logger.Info(ctx, "step execute finish, jobExecutionId:%v, stepName:%v, stepStatus:%v", execution.JobExecution.JobExecutionId, step.Name(), execution.StepStatus)
+	logger.Info(ctx, "step execute finish, jobExecutionId:%v, stepName:%v, stepStatus:%v", execution.JobExecution.JobExecutionId, execution.StepName, execution.StepStatus)
 	return nil
 }
 
@@ -429,7 +429,7 @@ func (step *partitionStep) Exec(ctx context.Context, execution *StepExecution) (
 	defer func() {
 		err = execEnd(ctx, execution, err, recover())
 	}()
-	logger.Info(ctx, "start executing step, jobExecutionId:%v, stepName:%v", execution.JobExecution.JobExecutionId, step.Name())
+	logger.Info(ctx, "start executing step, jobExecutionId:%v, stepName:%v", execution.JobExecution.JobExecutionId, execution.StepName)
 	for _, listener := range step.listeners {
 		err = listener.BeforeStep(execution)
 		if err != nil {
@@ -459,6 +459,7 @@ func (step *partitionStep) Exec(ctx context.Context, execution *StepExecution) (
 		}
 		return err
 	}
+	logger.Info(ctx, "step:%v splitted into %d partitions", execution.StepName, len(subExecutions))
 	for _, listener := range step.partitionListeners {
 		err = listener.AfterPartition(execution, subExecutions)
 		if err != nil {
@@ -522,7 +523,7 @@ func (step *partitionStep) Exec(ctx context.Context, execution *StepExecution) (
 			break
 		}
 	}
-	logger.Info(ctx, "finish step execution, jobExecutionId:%v, stepName:%v, stepStatus:%v", execution.JobExecution.JobExecutionId, step.Name(), execution.StepStatus)
+	logger.Info(ctx, "finish step execution, jobExecutionId:%v, stepName:%v, stepStatus:%v", execution.JobExecution.JobExecutionId, execution.StepName, execution.StepStatus)
 	return nil
 }
 
@@ -530,8 +531,9 @@ func (step *partitionStep) split(ctx context.Context, execution *StepExecution, 
 	if execution.StepExecutionContext.Exists("gobatch.partitionStep.partitions") {
 		savedPartitions, e := execution.StepExecutionContext.GetInt("gobatch.partitionStep.partitions", int(partitions))
 		if e != nil {
-			return nil, NewBatchError(ErrCodeGeneral, "get 'gobatch.partitionStep.partitions' from step[%v] execution context failed", step.Name(), e)
+			return nil, NewBatchError(ErrCodeGeneral, "get 'gobatch.partitionStep.partitions' from step[%v] execution context failed", execution.StepName, e)
 		}
+		logger.Info(ctx, "split step:%v, saved partitions in StepExecutionContext:%v, try to get last splitted subExecutions", execution.StepName, savedPartitions)
 		subExecutions := make([]*StepExecution, 0, savedPartitions)
 		partitionNames := step.partitioner.GetPartitionNames(execution, uint(savedPartitions))
 		missingPartition := false
@@ -542,8 +544,8 @@ func (step *partitionStep) split(ctx context.Context, execution *StepExecution, 
 			}
 			if lastStepExecution != nil {
 				if util.In(lastStepExecution.StepStatus, []interface{}{status.STARTING, status.STARTED, status.STOPPING, status.UNKNOWN}) {
-					logger.Error(ctx, "last StepExecution is in progress or terminated abnormally, jobExecutionId:%v, stepName:%v", execution.JobExecution.JobExecutionId, step.Name())
-					return nil, NewBatchError(ErrCodeGeneral, "last StepExecution is in progress or terminated abnormally, jobExecutionId:%v, stepName:%v", execution.JobExecution.JobExecutionId, step.Name())
+					logger.Error(ctx, "last StepExecution is in progress or terminated abnormally, jobExecutionId:%v, stepName:%v", execution.JobExecution.JobExecutionId, execution.StepName)
+					return nil, NewBatchError(ErrCodeGeneral, "last StepExecution is in progress or terminated abnormally, jobExecutionId:%v, stepName:%v", execution.JobExecution.JobExecutionId, execution.StepName)
 				}
 				if lastStepExecution.StepStatus == status.COMPLETED {
 					continue

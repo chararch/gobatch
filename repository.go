@@ -365,7 +365,7 @@ func saveStepExecution(ctx context.Context, execution *StepExecution) BatchError
 			JobInstanceId: execution.JobExecution.JobInstanceId,
 			StepName:      execution.StepName,
 			StepContext:   &stepCtxJson,
-			CreateTime:    time.Now(),
+			CreateTime:    execution.CreateTime,
 		}
 		if err := saveStepContexts(stepContext); err != nil {
 			return err
@@ -398,12 +398,12 @@ func saveStepExecution(ctx context.Context, execution *StepExecution) BatchError
 		execution.Version = 1
 	} else {
 		executionCtxStr, _ := util.JsonString(execution.StepExecutionContext)
-		buff.WriteString("UPDATE BATCH_STEP_EXECUTION SET STATUS=?, COMMIT_COUNT=?, READ_COUNT=?, FILTER_COUNT=?, WRITE_COUNT=?, READ_SKIP_COUNT=?, WRITE_SKIP_COUNT=?, PROCESS_SKIP_COUNT=?, ROLLBACK_COUNT=?, EXECUTION_CONTEXT=?, STEP_CONTEXT_ID=?, EXIT_CODE=?, EXIT_MESSAGE=?, LAST_UPDATED=?, VERSION=? WHERE STEP_EXECUTION_ID=? AND VERSION=?")
+		buff.WriteString("UPDATE BATCH_STEP_EXECUTION SET STATUS=?, COMMIT_COUNT=?, READ_COUNT=?, FILTER_COUNT=?, WRITE_COUNT=?, READ_SKIP_COUNT=?, WRITE_SKIP_COUNT=?, PROCESS_SKIP_COUNT=?, ROLLBACK_COUNT=?, EXECUTION_CONTEXT=?, STEP_CONTEXT_ID=?, EXIT_CODE=?, EXIT_MESSAGE=?, START_TIME=?, END_TIME=?, LAST_UPDATED=?, VERSION=? WHERE STEP_EXECUTION_ID=? AND VERSION=?")
 		failMsg := ""
 		if execution.FailError != nil {
 			failMsg = execution.FailError.StackTrace()
 		}
-		args = append(args, execution.StepStatus, execution.CommitCount, execution.ReadCount, execution.FilterCount, execution.WriteCount, execution.ReadSkipCount, execution.WriteSkipCount, execution.ProcessSkipCount, execution.RollbackCount, executionCtxStr, execution.StepContextId, execution.StepStatus, failMsg, time.Now(), execution.Version+1, execution.StepExecutionId, execution.Version)
+		args = append(args, execution.StepStatus, execution.CommitCount, execution.ReadCount, execution.FilterCount, execution.WriteCount, execution.ReadSkipCount, execution.WriteSkipCount, execution.ProcessSkipCount, execution.RollbackCount, executionCtxStr, execution.StepContextId, execution.StepStatus, failMsg, execution.StartTime, execution.EndTime, time.Now(), execution.Version+1, execution.StepExecutionId, execution.Version)
 
 		res, err := db.Exec(buff.String(), args...)
 		if err != nil {

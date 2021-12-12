@@ -1,6 +1,7 @@
 package gobatch
 
 import (
+	"context"
 	"fmt"
 	errors "github.com/pkg/errors"
 	"reflect"
@@ -129,6 +130,7 @@ func (p *defaultPartitioner) Partition(execution *StepExecution, partitions uint
 		subExecutions[partitionName] = subExecution
 		i++
 	}
+	logger.Info(context.Background(), "partition step:%v, total count:%v, partitions:%v, partitionSize:%v, subExecutions:%v", execution.StepName, count, partitions, partitionSize, len(subExecutions))
 	return subExecutions, nil
 }
 
