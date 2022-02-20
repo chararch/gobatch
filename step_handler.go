@@ -17,6 +17,13 @@ type Writer interface {
 }
 
 type Partitioner interface {
-	Partition(execution *StepExecution, partitions uint) (map[string]*StepExecution, BatchError)
+	Partition(execution *StepExecution, partitions uint) ([]*StepExecution, BatchError)
 	GetPartitionNames(execution *StepExecution, partitions uint) []string
+}
+type PartitionerFactory interface {
+	GetPartitioner(minPartitionSize, maxPartitionSize uint) Partitioner
+}
+
+type Aggregator interface {
+	Aggregate(execution *StepExecution, subExecutions []*StepExecution) BatchError
 }

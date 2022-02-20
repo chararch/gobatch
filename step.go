@@ -280,12 +280,14 @@ func (step *chunkStep) Exec(ctx context.Context, execution *StepExecution) (err 
 func (step *chunkStep) doOpenIfNecessary(execution *StepExecution) BatchError {
 	if rc, ok := step.reader.(OpenCloser); ok {
 		if err := rc.Open(execution); err != nil {
-			return NewBatchError(ErrCodeGeneral, "open reader:%T failed", step.reader, err)
+			return err
 		}
 	}
-	if wc, ok := step.writer.(OpenCloser); ok {
-		if err := wc.Open(execution); err != nil {
-			return NewBatchError(ErrCodeGeneral, "open writer:%T failed", step.writer, err)
+	if step.writer != nil {
+		if wc, ok := step.writer.(OpenCloser); ok {
+			if err := wc.Open(execution); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
@@ -294,12 +296,14 @@ func (step *chunkStep) doOpenIfNecessary(execution *StepExecution) BatchError {
 func (step *chunkStep) doCloseIfNecessary(execution *StepExecution) BatchError {
 	if rc, ok := step.reader.(OpenCloser); ok {
 		if err := rc.Close(execution); err != nil {
-			return NewBatchError(ErrCodeGeneral, "close reader:%T failed", step.reader, err)
+			return err
 		}
 	}
-	if wc, ok := step.writer.(OpenCloser); ok {
-		if err := wc.Close(execution); err != nil {
-			return NewBatchError(ErrCodeGeneral, "close writer:%T failed", step.writer, err)
+	if step.writer != nil {
+		if wc, ok := step.writer.(OpenCloser); ok {
+			if err := wc.Close(execution); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
@@ -333,15 +337,18 @@ func (step *chunkStep) doChunk(ctx context.Context, chunk *ChunkContext, input *
 	output.items = output.items[0:0]
 	if len(input.items) > 0 {
 		for index, item := range input.items {
-			outItem, err := step.processor.Process(item, chunk)
-			if err != nil {
-				logger.Error(ctx, "process chunk item error, jobExecutionId:%v, stepName:%v, item:%v, err:%v", chunk.StepExecution.JobExecution.JobExecutionId, chunk.StepExecution.StepName, item, err)
-				for _, listener := range step.chunkListeners {
-					listener.OnError(chunk, err)
+			outItem := item
+			if step.processor != nil {
+				outItem, err = step.processor.Process(item, chunk)
+				if err != nil {
+					logger.Error(ctx, "process chunk item error, jobExecutionId:%v, stepName:%v, item:%v, err:%v", chunk.StepExecution.JobExecution.JobExecutionId, chunk.StepExecution.StepName, item, err)
+					for _, listener := range step.chunkListeners {
+						listener.OnError(chunk, err)
+					}
+					return err
+				} else {
+					logger.Debug(ctx, "process chunk item success, jobExecutionId:%v, stepName:%v, inItem:%v, outItem:%v", chunk.StepExecution.JobExecution.JobExecutionId, chunk.StepExecution.StepName, item, outItem)
 				}
-				return err
-			} else {
-				logger.Debug(ctx, "process chunk item success, jobExecutionId:%v, stepName:%v, inItem:%v, outItem:%v", chunk.StepExecution.JobExecution.JobExecutionId, chunk.StepExecution.StepName, item, outItem)
 			}
 			if outItem != nil {
 				output.items = append(output.items, outItem)
@@ -349,7 +356,7 @@ func (step *chunkStep) doChunk(ctx context.Context, chunk *ChunkContext, input *
 				input.skip(index)
 			}
 		}
-		if len(output.items) > 0 {
+		if len(output.items) > 0 && step.writer != nil {
 			err = step.writer.Write(output.items, chunk)
 			if err != nil {
 				logger.Error(ctx, "write chunk data error, jobExecutionId:%v, stepName:%v, err:%v", chunk.StepExecution.JobExecution.JobExecutionId, chunk.StepExecution.StepName, err)
@@ -358,8 +365,8 @@ func (step *chunkStep) doChunk(ctx context.Context, chunk *ChunkContext, input *
 				}
 				return err
 			}
+			logger.Debug(ctx, "write chunk data success, jobExecutionId:%v, stepName:%v, write count:%v", chunk.StepExecution.JobExecution.JobExecutionId, chunk.StepExecution.StepName, len(output.items))
 		}
-		logger.Debug(ctx, "write chunk data success, jobExecutionId:%v, stepName:%v, write count:%v", chunk.StepExecution.JobExecution.JobExecutionId, chunk.StepExecution.StepName, len(output.items))
 	}
 	for _, listener := range step.chunkListeners {
 		err = listener.AfterChunk(chunk)
@@ -404,17 +411,19 @@ type partitionStep struct {
 	step               Step
 	partitions         uint
 	partitioner        Partitioner
+	aggregator         Aggregator
 	listeners          []StepListener
 	partitionListeners []PartitionListener
 	taskPool           *taskPool
 }
 
-func newPartitionStep(step Step, partitioner Partitioner, partitions uint, listeners []StepListener, partitionListeners []PartitionListener) *partitionStep {
+func newPartitionStep(step Step, partitioner Partitioner, partitions uint, aggregator Aggregator, listeners []StepListener, partitionListeners []PartitionListener) *partitionStep {
 	return &partitionStep{
 		name:               step.Name(),
 		step:               step,
 		partitions:         partitions,
 		partitioner:        partitioner,
+		aggregator:         aggregator,
 		listeners:          listeners,
 		partitionListeners: partitionListeners,
 		taskPool:           stepPool,
@@ -514,6 +523,25 @@ func (step *partitionStep) Exec(ctx context.Context, execution *StepExecution) (
 		}
 		stepStatus = stepStatus.And(subExecutions[i].StepStatus)
 	}
+	//aggregate
+	if stepStatus == status.COMPLETED && step.aggregator != nil {
+		partitionNames := step.partitioner.GetPartitionNames(execution, step.partitions)
+		allSubExecutions := make([]*StepExecution, 0)
+		for _, partitionName := range partitionNames {
+			subExecution, err := findLastCompleteStepExecution(execution.JobExecution.JobInstanceId, partitionName)
+			if err != nil {
+				return err
+			}
+			allSubExecutions = append(allSubExecutions, subExecution)
+		}
+		err = step.aggregator.Aggregate(execution, allSubExecutions)
+		if err != nil {
+			stepStatus = status.FAILED
+			logger.Error(ctx, "aggregate sub-step error, jobExecutionId:%v, stepName:%v, err:%v", execution.JobExecution.JobExecutionId, execution.StepName, err)
+		} else {
+			logger.Info(ctx, "aggregate sub-step finish, jobExecutionId:%v, stepName:%v", execution.JobExecution.JobExecutionId, execution.StepName)
+		}
+	}
 	execution.StepStatus = stepStatus
 	execution.EndTime = time.Now()
 	for _, listener := range step.listeners {
@@ -527,11 +555,13 @@ func (step *partitionStep) Exec(ctx context.Context, execution *StepExecution) (
 	return nil
 }
 
+const PartitionStepPartitionsKey = "gobatch.partitionStep.partitions"
+
 func (step *partitionStep) split(ctx context.Context, execution *StepExecution, partitions uint) ([]*StepExecution, BatchError) {
-	if execution.StepExecutionContext.Exists("gobatch.partitionStep.partitions") {
-		savedPartitions, e := execution.StepExecutionContext.GetInt("gobatch.partitionStep.partitions", int(partitions))
+	if execution.StepExecutionContext.Exists(PartitionStepPartitionsKey) {
+		savedPartitions, e := execution.StepExecutionContext.GetInt(PartitionStepPartitionsKey, int(partitions))
 		if e != nil {
-			return nil, NewBatchError(ErrCodeGeneral, "get 'gobatch.partitionStep.partitions' from step[%v] execution context failed", execution.StepName, e)
+			return nil, NewBatchError(ErrCodeGeneral, "get '%v' from step[%v] execution context failed", PartitionStepPartitionsKey, execution.StepName, e)
 		}
 		logger.Info(ctx, "split step:%v, saved partitions in StepExecutionContext:%v, try to get last splitted subExecutions", execution.StepName, savedPartitions)
 		subExecutions := make([]*StepExecution, 0, savedPartitions)
@@ -572,16 +602,14 @@ func (step *partitionStep) split(ctx context.Context, execution *StepExecution, 
 			return subExecutions, nil
 		}
 	}
-	subExecutionMap, err := step.partitioner.Partition(execution, partitions)
+	subExecutions, err := step.partitioner.Partition(execution, partitions)
 	if err != nil {
 		return nil, err
 	}
-	subExecutions := make([]*StepExecution, 0, len(subExecutionMap))
-	for _, subExecution := range subExecutionMap {
+	for _, subExecution := range subExecutions {
 		subExecution.JobExecution = execution.JobExecution
-		subExecutions = append(subExecutions, subExecution)
 	}
-	execution.StepExecutionContext.Put("gobatch.partitionStep.partitions", len(subExecutions))
+	execution.StepExecutionContext.Put(PartitionStepPartitionsKey, len(subExecutions))
 	return subExecutions, nil
 }
 

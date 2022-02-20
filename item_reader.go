@@ -8,9 +8,9 @@ import (
 )
 
 const (
-	ItemReaderKeyList      = "gobatch.item.reader.key.list"
-	ItemReaderCurrentIndex = "gobatch.item.reader.current.index"
-	ItemReaderMaxIndex     = "gobatch.item.reader.max.index"
+	ItemReaderKeyList      = "gobatch.ItemReader.key.list"
+	ItemReaderCurrentIndex = "gobatch.ItemReader.current.index"
+	ItemReaderMaxIndex     = "gobatch.ItemReader.max.index"
 )
 
 type ItemReader interface {
@@ -19,15 +19,15 @@ type ItemReader interface {
 }
 
 type OpenCloser interface {
-	Open(execution *StepExecution) error
-	Close(execution *StepExecution) error
+	Open(execution *StepExecution) BatchError
+	Close(execution *StepExecution) BatchError
 }
 
-type defaultItemReader struct {
+type defaultChunkReader struct {
 	itemReader ItemReader
 }
 
-func (reader defaultItemReader) Open(execution *StepExecution) BatchError {
+func (reader *defaultChunkReader) Open(execution *StepExecution) BatchError {
 	stepCtx := execution.StepContext
 	executionCtx := execution.StepExecutionContext
 	keyList := stepCtx.Get(ItemReaderKeyList)
@@ -48,7 +48,7 @@ func (reader defaultItemReader) Open(execution *StepExecution) BatchError {
 	return nil
 }
 
-func (reader defaultItemReader) Read(chunkCtx *ChunkContext) (r interface{}, e BatchError) {
+func (reader *defaultChunkReader) Read(chunkCtx *ChunkContext) (r interface{}, e BatchError) {
 	defer func() {
 		if err := recover(); err != nil {
 			e = NewBatchError(ErrCodeGeneral, "panic on Read() in item reader, err:%v", err)
@@ -77,13 +77,16 @@ func (reader defaultItemReader) Read(chunkCtx *ChunkContext) (r interface{}, e B
 	return nil, nil
 }
 
-func (reader defaultItemReader) Close(execution *StepExecution) BatchError {
-	stepCtx := execution.StepContext
-	executionCtx := execution.StepExecutionContext
-	stepCtx.Remove(ItemReaderKeyList)
-	executionCtx.Remove(ItemReaderCurrentIndex)
-	executionCtx.Remove(ItemReaderMaxIndex)
+func (reader *defaultChunkReader) Close(execution *StepExecution) BatchError {
 	return nil
+}
+
+func (reader *defaultChunkReader) GetPartitioner(minPartitionSize, maxPartitionSize uint) Partitioner {
+	return &defaultPartitioner{
+		itemReader:       reader.itemReader,
+		minPartitionSize: minPartitionSize,
+		maxPartitionSize: maxPartitionSize,
+	}
 }
 
 type defaultPartitioner struct {
@@ -92,7 +95,7 @@ type defaultPartitioner struct {
 	maxPartitionSize uint
 }
 
-func (p *defaultPartitioner) Partition(execution *StepExecution, partitions uint) (subExecutions map[string]*StepExecution, e BatchError) {
+func (p *defaultPartitioner) Partition(execution *StepExecution, partitions uint) (subExecutions []*StepExecution, e BatchError) {
 	defer func() {
 		if err := recover(); err != nil {
 			e = NewBatchError(ErrCodeGeneral, "panic on Partition in defaultPartitioner, err:%v", err)
@@ -102,7 +105,7 @@ func (p *defaultPartitioner) Partition(execution *StepExecution, partitions uint
 	if err != nil {
 		return nil, NewBatchError(ErrCodeGeneral, "ReadKeys() err", err)
 	}
-	subExecutions = make(map[string]*StepExecution)
+	subExecutions = make([]*StepExecution, 0)
 	count := len(keys)
 	if count == 0 {
 		return subExecutions, nil
@@ -127,7 +130,7 @@ func (p *defaultPartitioner) Partition(execution *StepExecution, partitions uint
 		subExecution.StepContext.Put(ItemReaderKeyList, partitionKeys)
 		subExecution.StepExecutionContext.Put(ItemReaderCurrentIndex, 0)
 		subExecution.StepExecutionContext.Put(ItemReaderMaxIndex, len(partitionKeys))
-		subExecutions[partitionName] = subExecution
+		subExecutions = append(subExecutions, subExecution)
 		i++
 	}
 	logger.Info(context.Background(), "partition step:%v, total count:%v, partitions:%v, partitionSize:%v, subExecutions:%v", execution.StepName, count, partitions, partitionSize, len(subExecutions))

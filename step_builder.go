@@ -1,6 +1,7 @@
 package gobatch
 
 import (
+	"chararch/gobatch/file"
 	"fmt"
 )
 
@@ -24,6 +25,7 @@ type stepBuilder struct {
 	partitions         uint
 	minPartitionSize   uint
 	maxPartitionSize   uint
+	aggregator         Aggregator
 	stepListeners      []StepListener
 	chunkListeners     []ChunkListener
 	partitionListeners []PartitionListener
@@ -35,8 +37,8 @@ func NewStep(name string, handler ...interface{}) *stepBuilder {
 	}
 	builder := &stepBuilder{
 		name:               name,
-		processor:          nilProcessor{},
-		writer:             nilWriter{},
+		processor:          &nilProcessor{},
+		writer:             &nilWriter{},
 		chunkSize:          DefaultChunkSize,
 		partitions:         DefaultPartitions,
 		minPartitionSize:   DefaultMinPartitionSize,
@@ -112,6 +114,10 @@ func (builder *stepBuilder) Handler(handler interface{}) *stepBuilder {
 			builder.Partitioner(val2)
 			valid = true
 		}
+		if val2, ok2 := handler.(Aggregator); ok2 {
+			builder.Aggregator(val2)
+			valid = true
+		}
 		if val2, ok2 := handler.(StepListener); ok2 {
 			builder.stepListeners = append(builder.stepListeners, val2)
 			valid = true
@@ -142,7 +148,7 @@ func (builder *stepBuilder) Reader(reader interface{}) *stepBuilder {
 	case Reader:
 		builder.reader = r
 	case ItemReader:
-		builder.reader = defaultItemReader{
+		builder.reader = &defaultChunkReader{
 			itemReader: r,
 		}
 	default:
@@ -158,6 +164,55 @@ func (builder *stepBuilder) Processor(processor Processor) *stepBuilder {
 
 func (builder *stepBuilder) Writer(writer Writer) *stepBuilder {
 	builder.writer = writer
+	return builder
+}
+
+func (builder *stepBuilder) ReadFile(fd file.FileDescriptor, readers ...interface{}) *stepBuilder {
+	fr := &fileReader{fd: fd}
+	if len(readers) > 0 {
+		for _, r := range readers {
+			switch rr := r.(type) {
+			case file.FileItemReader:
+				fr.reader = rr
+			case file.ChecksumVerifier:
+				fr.verifier = rr
+			}
+		}
+	}
+	if fr.reader == nil && fr.fd.Type != "" {
+		fr.reader = file.GetFileItemReader(fr.fd.Type)
+	}
+	if fr.reader == nil {
+		panic("file type is non-standard and no FileItemReader specified")
+	}
+	builder.reader = fr
+	return builder
+}
+
+func (builder *stepBuilder) WriteFile(fd file.FileDescriptor, writers ...interface{}) *stepBuilder {
+	fw := &fileWriter{fd: fd}
+	if len(writers) > 0 {
+		for _, w := range writers {
+			switch ww := w.(type) {
+			case file.FileItemWriter:
+				fw.writer = ww
+			case file.ChecksumFlusher:
+				fw.checkumer = ww
+			case file.FileMerger:
+				fw.merger = ww
+			}
+		}
+	}
+	if fw.writer == nil && fw.fd.Type != "" {
+		fw.writer = file.GetFileItemWriter(fw.fd.Type)
+	}
+	if fw.writer == nil {
+		panic("file type is non-standard and no FileItemWriter specified")
+	}
+	if fw.merger == nil && fw.fd.Type != "" {
+		fw.merger = file.GetFileMergeSplitter(fw.fd.Type)
+	}
+	builder.writer = fw
 	return builder
 }
 
@@ -181,6 +236,11 @@ func (builder *stepBuilder) Partitions(partitions uint, partitionSize ...uint) *
 		builder.minPartitionSize = partitionSize[0]
 		builder.maxPartitionSize = partitionSize[1]
 	}
+	return builder
+}
+
+func (builder *stepBuilder) Aggregator(aggregator Aggregator) *stepBuilder {
+	builder.aggregator = aggregator
 	return builder
 }
 
@@ -210,26 +270,35 @@ func (builder *stepBuilder) Build() Step {
 		if txManager == nil {
 			panic(fmt.Sprintf("you must specify a transaction manager with gobatch.SetTransactionManager() before constructing chunk step:%v", builder.name))
 		}
-		step = newChunkStep(builder.name, builder.reader, builder.processor, builder.writer, builder.chunkSize, builder.stepListeners, builder.chunkListeners)
+		reader := builder.reader
+		writer := builder.writer
+		step = newChunkStep(builder.name, reader, builder.processor, writer, builder.chunkSize, builder.stepListeners, builder.chunkListeners)
 	}
+
 	if step != nil {
 		if builder.partitioner != nil {
-			step = newPartitionStep(step, builder.partitioner, builder.partitions, builder.stepListeners, builder.partitionListeners)
+			step = newPartitionStep(step, builder.partitioner, builder.partitions, builder.aggregator, builder.stepListeners, builder.partitionListeners)
 		} else if builder.partitions > 1 {
-			if r, ok := builder.reader.(defaultItemReader); ok {
-				partitioner := &defaultPartitioner{
-					itemReader:       r.itemReader,
-					minPartitionSize: builder.minPartitionSize,
-					maxPartitionSize: builder.maxPartitionSize,
+			if builder.reader != nil {
+				if r, ok := builder.reader.(PartitionerFactory); ok {
+					partitioner := r.GetPartitioner(builder.minPartitionSize, builder.maxPartitionSize)
+					aggregator := builder.aggregator
+					if aggregator == nil && builder.writer != nil {
+						if aggr, ok2 := builder.writer.(Aggregator); ok2 {
+							aggregator = aggr
+						}
+					}
+					step = newPartitionStep(step, partitioner, builder.partitions, aggregator, builder.stepListeners, builder.partitionListeners)
+				} else {
+					panic(fmt.Sprintf("can not partition step[%s] without Partitioner or PartitionerFactory\n", builder.name))
 				}
-				step = newPartitionStep(step, partitioner, builder.partitions, builder.stepListeners, builder.partitionListeners)
 			} else {
-				panic(fmt.Sprintf("no ItemReader specified for paritioned step: %s\n", builder.name))
+				panic(fmt.Sprintf("can not partition step[%s] without Partitioner or PartitionerFactory\n", builder.name))
 			}
 		}
 	}
 	if step == nil {
-		panic(fmt.Sprintf("no handler nor reader specified for step: %s\n", builder.name))
+		panic(fmt.Sprintf("no handler or reader specified for step: %s\n", builder.name))
 	}
 
 	return step
@@ -238,19 +307,19 @@ func (builder *stepBuilder) Build() Step {
 type nilProcessor struct {
 }
 
-func (p nilProcessor) Process(item interface{}, chunkCtx *ChunkContext) (interface{}, BatchError) {
+func (p *nilProcessor) Process(item interface{}, chunkCtx *ChunkContext) (interface{}, BatchError) {
 	return item, nil
 }
 
 type nilWriter struct {
 }
 
-func (w nilWriter) Open(execution *StepExecution) BatchError {
+func (w *nilWriter) Open(execution *StepExecution) BatchError {
 	return nil
 }
-func (w nilWriter) Write(items []interface{}, chunkCtx *ChunkContext) BatchError {
+func (w *nilWriter) Write(items []interface{}, chunkCtx *ChunkContext) BatchError {
 	return nil
 }
-func (w nilWriter) Close(execution *StepExecution) BatchError {
+func (w *nilWriter) Close(execution *StepExecution) BatchError {
 	return nil
 }

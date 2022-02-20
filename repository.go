@@ -307,6 +307,21 @@ func findLastStepExecution(jobInstanceId int64, stepName string) (*StepExecution
 	return nil, nil
 }
 
+//find last step execution by job instance and step name
+func findLastCompleteStepExecution(jobInstanceId int64, stepName string) (*StepExecution, BatchError) {
+	rows, err := db.Query("SELECT STEP_EXECUTION_ID, STEP_NAME, JOB_EXECUTION_ID, JOB_INSTANCE_ID, JOB_NAME, CREATE_TIME, START_TIME, END_TIME, STATUS, COMMIT_COUNT, READ_COUNT, FILTER_COUNT, WRITE_COUNT, READ_SKIP_COUNT, WRITE_SKIP_COUNT, PROCESS_SKIP_COUNT, ROLLBACK_COUNT, EXECUTION_CONTEXT, EXIT_CODE, EXIT_MESSAGE, LAST_UPDATED, VERSION FROM BATCH_STEP_EXECUTION WHERE JOB_INSTANCE_ID=? AND STEP_NAME=? AND STATUS=? ORDER BY CREATE_TIME DESC", jobInstanceId, stepName, status.COMPLETED)
+	if err != nil {
+		return nil, NewBatchError(ErrCodeDbFail, "query step executions from db failed", err)
+	}
+	defer rows.Close()
+
+	if rows.Next() {
+		stepExecution, bError := extractStepExecution(rows)
+		return stepExecution, bError
+	}
+	return nil, nil
+}
+
 func extractStepExecution(rows *sql.Rows) (*StepExecution, BatchError) {
 	//1. query step execution
 	execution := &batchStepExecution{}
