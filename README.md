@@ -9,12 +9,12 @@ In GoBatch, job is divided into multiple steps, the steps are executed successiv
 
 There are three types of step:
 - *Simple Step* execute business logic in a single Handler.
-- *Chunk Step* process data by chunks. The process flow is reading a chunk of data, process it, then write output. The process is repeated until no more data to read.
+- *Chunk Step* process data by chunks. The process flow is reading a chunk of data, processing it, then writing output. The process is repeated until no more data read.
 - *Partition Step* split task into multiple sub steps, then execute sub steps parallelly, and aggregate result of sub steps at last.
 
 ![](https://raw.githubusercontent.com/chararch/images/main/step.png)
 
-## Feathers
+## Features
 
 - Modular construction for batch application
 - Serial and parallel process flow on your need
