@@ -4,20 +4,24 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"reflect"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
 )
 
 type xsvMetadata struct {
-	structType      reflect.Type
-	fieldCount      int
-	defaultByOrder  map[int]string
-	structFields    []string
-	structFieldMap  map[string]int
-	defaultByHeader map[string]string
-	fileHeaders     []string
-	fileHeaderMap   map[string]int
+	structType              reflect.Type
+	defaultByOrder          map[int]string
+	structFields            []string
+	structFieldMap          map[string]int
+	structUnOrderedFields   []string
+	structUnOrderedFieldMap map[string]int
+	structOrderedFields     []string
+	structOrderedFieldMap   map[string]int
+	defaultByHeader         map[string]string
+	fileHeaders             []string
+	fileHeaderMap           map[string]int
 }
 
 func slice2Map(s []string) map[string]int {
@@ -30,13 +34,17 @@ func slice2Map(s []string) map[string]int {
 
 func getMetadata(tp reflect.Type) (*xsvMetadata, error) {
 	meta := &xsvMetadata{
-		structType:      tp,
-		fieldCount:      0,
-		defaultByOrder:  make(map[int]string),
-		structFields:    make([]string, 0),
-		structFieldMap:  make(map[string]int),
-		defaultByHeader: make(map[string]string),
+		structType:              tp,
+		defaultByOrder:          make(map[int]string),
+		//structFields:            make([]string, 0),
+		//structFieldMap:          make(map[string]int),
+		structUnOrderedFields:   make([]string, 0),
+		structUnOrderedFieldMap: make(map[string]int),
+		structOrderedFields:     make([]string, 0),
+		structOrderedFieldMap:   make(map[string]int),
+		defaultByHeader:         make(map[string]string),
 	}
+
 	for i := 0; i < tp.NumField(); i++ {
 		tf := tp.Field(i)
 		if tf.Tag != "" {
@@ -56,15 +64,27 @@ func getMetadata(tp reflect.Type) (*xsvMetadata, error) {
 				} else {
 					return nil, errors.Errorf("can not serialize struct with duplicate order:%v", idx)
 				}
-				if idx+1 > meta.fieldCount {
-					meta.fieldCount = idx + 1
+				header := tf.Name
+				if tf.Tag.Get("header") != "" {
+					header = tf.Tag.Get("header")
 				}
-			}
-			if tf.Tag.Get("header") != "" {
+				meta.structOrderedFieldMap[header] = idx
+				meta.structOrderedFields = append(meta.structOrderedFields, header)
+				if _, ok := meta.defaultByHeader[header]; !ok {
+					if tf.Tag.Get("default") != "" {
+						meta.defaultByHeader[header] = tf.Tag.Get("default")
+					} else {
+						val := reflect.New(tf.Type).Elem()
+						meta.defaultByHeader[header], _ = formatVal(val, tf.Type, tf.Tag)
+					}
+				} else {
+					return nil, errors.Errorf("can not serialize struct with duplicate header:%v", idx)
+				}
+			} else if tf.Tag.Get("header") != "" {
 				header := tf.Tag.Get("header")
-				if _, ok := meta.structFieldMap[header]; !ok {
-					meta.structFieldMap[header] = len(meta.structFields)
-					meta.structFields = append(meta.structFields, header)
+				if _, ok := meta.structUnOrderedFieldMap[header]; !ok {
+					meta.structUnOrderedFieldMap[header] = len(meta.structUnOrderedFields)
+					meta.structUnOrderedFields = append(meta.structUnOrderedFields, header)
 
 					if tf.Tag.Get("default") != "" {
 						meta.defaultByHeader[header] = tf.Tag.Get("default")
@@ -87,15 +107,26 @@ func getMetadata(tp reflect.Type) (*xsvMetadata, error) {
 				} else {
 					return nil, errors.Errorf("can not serialize struct with duplicate order:%v", idx)
 				}
-				if idx+1 > meta.fieldCount {
-					meta.fieldCount = idx + 1
+			}
+			for header, val := range meta2.defaultByHeader {
+				if _, ok := meta.defaultByHeader[header]; !ok {
+					meta.defaultByHeader[header] = val
+				} else {
+					return nil, errors.Errorf("can not serialize struct with duplicate header:%v", header)
 				}
 			}
-			for header, _ := range meta2.structFieldMap {
-				if _, ok := meta.structFieldMap[header]; !ok {
-					meta.structFieldMap[header] = len(meta.structFields)
-					meta.structFields = append(meta.structFields, header)
-					meta.defaultByHeader[header] = meta2.defaultByHeader[header]
+			for header, idx := range meta2.structOrderedFieldMap {
+				if _, ok := meta.structOrderedFieldMap[header]; !ok {
+					meta.structOrderedFieldMap[header] = idx
+					meta.structOrderedFields = append(meta.structOrderedFields, header)
+				} else {
+					return nil, errors.Errorf("can not serialize struct with duplicate header:%v", header)
+				}
+			}
+			for header, _ := range meta2.structUnOrderedFieldMap {
+				if _, ok := meta.structUnOrderedFieldMap[header]; !ok {
+					meta.structUnOrderedFieldMap[header] = len(meta.structUnOrderedFields)
+					meta.structUnOrderedFields = append(meta.structUnOrderedFields, header)
 				} else {
 					return nil, errors.Errorf("can not serialize struct with duplicate header:%v", header)
 				}
@@ -116,15 +147,26 @@ func getMetadata(tp reflect.Type) (*xsvMetadata, error) {
 					} else {
 						return nil, errors.Errorf("can not serialize struct with duplicate order:%v", idx)
 					}
-					if idx+1 > meta.fieldCount {
-						meta.fieldCount = idx + 1
+				}
+				for header, val := range meta2.defaultByHeader {
+					if _, ok := meta.defaultByHeader[header]; !ok {
+						meta.defaultByHeader[header] = val
+					} else {
+						return nil, errors.Errorf("can not serialize struct with duplicate header:%v", header)
 					}
 				}
-				for header, _ := range meta2.structFieldMap {
-					if _, ok := meta.structFieldMap[header]; !ok {
-						meta.structFieldMap[header] = len(meta.structFields)
-						meta.structFields = append(meta.structFields, header)
-						meta.defaultByHeader[header] = meta2.defaultByHeader[header]
+				for header, idx := range meta2.structOrderedFieldMap {
+					if _, ok := meta.structOrderedFieldMap[header]; !ok {
+						meta.structOrderedFieldMap[header] = idx
+						meta.structOrderedFields = append(meta.structOrderedFields, header)
+					} else {
+						return nil, errors.Errorf("can not serialize struct with duplicate header:%v", header)
+					}
+				}
+				for header, _ := range meta2.structUnOrderedFieldMap {
+					if _, ok := meta.structUnOrderedFieldMap[header]; !ok {
+						meta.structUnOrderedFieldMap[header] = len(meta.structUnOrderedFields)
+						meta.structUnOrderedFields = append(meta.structUnOrderedFields, header)
 					} else {
 						return nil, errors.Errorf("can not serialize struct with duplicate header:%v", header)
 					}
@@ -132,7 +174,125 @@ func getMetadata(tp reflect.Type) (*xsvMetadata, error) {
 			}
 		}
 	}
+
+	meta.structFields = make([]string, len(meta.structUnOrderedFields))
+	meta.structFieldMap = make(map[string]int)
+	copy(meta.structFields, meta.structUnOrderedFields)
+	for header, idx := range meta.structUnOrderedFieldMap {
+		meta.structFieldMap[header] = idx
+	}
+	fieldCount := len(meta.structFields)
+
+	if len(meta.structOrderedFields) > 0 {
+		sort.Slice(meta.structOrderedFields, func(i, j int) bool {
+			fieldi := meta.structOrderedFields[i]
+			fieldj := meta.structOrderedFields[j]
+			return meta.structOrderedFieldMap[fieldi] < meta.structOrderedFieldMap[fieldj]
+		})
+		for _, field := range meta.structOrderedFields {
+			idx := meta.structOrderedFieldMap[field]
+			if idx >= fieldCount {
+				for i := 0; i < idx-fieldCount; i++ {
+					meta.structFields = append(meta.structFields, "-")
+				}
+				meta.structFields = append(meta.structFields, field)
+			} else {
+				meta.structFields = append(meta.structFields, "")
+				for i := fieldCount; i > idx; i-- {
+					meta.structFields[i] = meta.structFields[i-1]
+				}
+				meta.structFields[idx] = field
+			}
+			meta.structFieldMap[field] = idx
+			fieldCount = len(meta.structFields)
+		}
+	}
+
 	return meta, nil
+}
+
+func xsvUnmarshal(fields []string, headerIndexMap map[string]int, tp reflect.Type) (reflect.Value, error) {
+	val := reflect.New(tp)
+	for i := 0; i < tp.NumField(); i++ {
+		tf := tp.Field(i)
+		vf := val.Elem().Field(i)
+		if tf.Tag != "" && (tf.Tag.Get("order") != "" || tf.Tag.Get("header") != "") {
+			if !vf.CanSet() {
+				continue
+			}
+			fieldVal := ""
+			if tf.Tag.Get("order") != "" {
+				ord := tf.Tag.Get("order")
+				idx, err := strconv.Atoi(ord)
+				if err != nil || idx < 0 {
+					return reflect.Value{}, errors.New("invalid order value in tag")
+				}
+				if idx >= len(fields) {
+					return reflect.Value{}, errors.Errorf("order of %v is out of bound, order:%v, fieldCount:%v", tf.Name, idx, len(fields))
+				}
+				fieldVal = fields[idx]
+			} else {
+				header := tf.Tag.Get("header")
+				idx := headerIndexMap[header]
+				fieldVal = fields[idx]
+			}
+			fieldVal = strings.TrimSpace(fieldVal)
+			if fieldVal == "" {
+				continue
+			}
+			if vf.Kind() == reflect.Struct && tf.Type.String() == "time.Time" {
+				tm, err := parseDate(fieldVal, tf.Tag.Get("format"))
+				if err != nil {
+					return reflect.Value{}, err
+				}
+				vf.Set(reflect.ValueOf(tm))
+			} else {
+				_, err := setValue(fieldVal, vf.Addr(), tf.Type, tf.Tag)
+				if err != nil {
+					return reflect.Value{}, err
+				}
+			}
+		} else if tf.Type.Kind() == reflect.Struct {
+			if !vf.CanSet() {
+				continue
+			}
+			v, err := xsvUnmarshal(fields, headerIndexMap, tf.Type)
+			if err != nil {
+				return reflect.Value{}, err
+			}
+			vf.Set(v.Elem())
+		} else if tf.Type.Kind() == reflect.Ptr {
+			tt := tf.Type
+			for {
+				if tt.Elem().Kind() != reflect.Ptr {
+					break
+				}
+				tt = tt.Elem()
+			}
+			if tt.Elem().Kind() == reflect.Struct {
+				v, err := xsvUnmarshal(fields, headerIndexMap, tt.Elem())
+				if err != nil {
+					return reflect.Value{}, err
+				}
+				t1 := tf.Type
+				v1 := vf
+				for {
+					if t1.Elem().Kind() == reflect.Ptr {
+						if !v1.CanSet() {
+							continue
+						}
+						v1.Set(reflect.New(t1.Elem()))
+						v1 = v1.Elem()
+						t1 = t1.Elem()
+					} else {
+						break
+					}
+				}
+				v1.Set(v)
+			}
+		}
+	}
+	return val, nil
 }
 
 func xsvUnmarshalByOrder(fields []string, tp reflect.Type) (reflect.Value, error) {
@@ -196,7 +356,7 @@ func xsvUnmarshalByOrder(fields []string, tp reflect.Type) (reflect.Value, error
 				for {
 					if t1.Elem().Kind() == reflect.Ptr {
 						if !v1.CanSet() {
-							continue
+							break
 						}
 						v1.Set(reflect.New(t1.Elem()))
 						v1 = v1.Elem()
@@ -204,6 +364,9 @@ func xsvUnmarshalByOrder(fields []string, tp reflect.Type) (reflect.Value, error
 					} else {
 						break
 					}
+				}
+				if !v1.CanSet() {
+					break
 				}
 				v1.Set(v)
 			}
@@ -353,17 +516,44 @@ func parseDate(fieldVal string, fmt string) (time.Time, error) {
 	}
 }
 
-func xsvMarshalByOrder(item interface{}, meta *xsvMetadata) ([]string, error) {
+func xsvMarshal(item interface{}, meta *xsvMetadata) ([]string, error) {
 	refItem := reflect.ValueOf(item)
 	for refItem.Type().Kind() == reflect.Ptr && !refItem.IsZero() {
 		refItem = refItem.Elem()
 	}
-	valueMap, err := serializeStruct(refItem, meta.structType)
+	valueMap, valueMapByHeader, err := serializeStruct(refItem, meta.structType)
 	if err != nil {
 		return nil, err
 	}
-	fields := make([]string, meta.fieldCount, meta.fieldCount)
-	for i := 0; i < meta.fieldCount; i++ {
+	fieldCount := len(meta.structFields)
+	fields := make([]string, fieldCount, fieldCount)
+	for i := 0; i < fieldCount; i++ {
+		field := meta.structFields[i]
+		if val, ok := valueMap[i]; ok {
+			fields[i] = val
+		} else if val2, ok2 := valueMapByHeader[field]; ok2 {
+			fields[i] = val2
+		} else if val3, ok3 := meta.defaultByOrder[i]; ok3 {
+			fields[i] = val3
+		} else {
+			fields[i] = meta.defaultByHeader[field]
+		}
+	}
+	return fields, nil
+}
+
+/*func xsvMarshalByOrder(item interface{}, meta *xsvMetadata) ([]string, error) {
+	refItem := reflect.ValueOf(item)
+	for refItem.Type().Kind() == reflect.Ptr && !refItem.IsZero() {
+		refItem = refItem.Elem()
+	}
+	valueMap, _, err := serializeStruct(refItem, meta.structType)
+	if err != nil {
+		return nil, err
+	}
+	fieldCount := len(meta.structFields)
+	fields := make([]string, fieldCount, fieldCount)
+	for i := 0; i < fieldCount; i++ {
 		if val, ok := valueMap[i]; ok {
 			fields[i] = val
 		} else {
@@ -371,41 +561,59 @@ func xsvMarshalByOrder(item interface{}, meta *xsvMetadata) ([]string, error) {
 		}
 	}
 	return fields, nil
-}
+}*/
 
-func serializeStruct(item reflect.Value, tp reflect.Type) (map[int]string, error) {
+func serializeStruct(item reflect.Value, tp reflect.Type) (map[int]string, map[string]string, error) {
 	fieldValueMap := make(map[int]string)
+	fieldValueByHeader := make(map[string]string)
 	if item.IsZero() {
-		return fieldValueMap, nil
+		return fieldValueMap, fieldValueByHeader, nil
 	}
 	for i := 0; i < tp.NumField(); i++ {
 		tf := tp.Field(i)
 		vf := item.Field(i)
-		if tf.Tag != "" && tf.Tag.Get("order") != "" {
-			ord := tf.Tag.Get("order")
-			idx, err := strconv.Atoi(ord)
-			if err != nil || idx < 0 {
-				return nil, errors.New("invalid order value in tag")
-			}
+		if tf.Tag != "" && (tf.Tag.Get("order") != "" || tf.Tag.Get("header") != "") {
 			val, err := formatField(tf, vf)
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
-			if _, ok := fieldValueMap[idx]; !ok {
-				fieldValueMap[idx] = val
-			} else {
-				return nil, errors.Errorf("can not serialize struct with duplicate order:%v", idx)
+			if tf.Tag.Get("order") != "" {
+				ord := tf.Tag.Get("order")
+				idx, err := strconv.Atoi(ord)
+				if err != nil || idx < 0 {
+					return nil, nil, errors.New("invalid order value in tag")
+				}
+				if _, ok := fieldValueMap[idx]; !ok {
+					fieldValueMap[idx] = val
+				} else {
+					return nil, nil, errors.Errorf("can not serialize struct with duplicate order:%v", idx)
+				}
+			}
+			if tf.Tag.Get("header") != "" {
+				header := tf.Tag.Get("header")
+				if _, ok := fieldValueByHeader[header]; !ok {
+					fieldValueByHeader[header] = val
+				} else {
+					return nil, nil, errors.Errorf("can not serialize struct with duplicate header:%v", header)
+				}
 			}
 		} else if tf.Type.Kind() == reflect.Struct {
-			fieldFieldValueMap, err := serializeStruct(vf, tf.Type)
+			fieldFieldValueMap, fieldFieldValueByHeader, err := serializeStruct(vf, tf.Type)
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 			for idx, val := range fieldFieldValueMap {
 				if _, ok := fieldValueMap[idx]; !ok {
 					fieldValueMap[idx] = val
 				} else {
-					return nil, errors.Errorf("can not serialize struct with duplicate order:%v", idx)
+					return nil, nil, errors.Errorf("can not serialize struct with duplicate order:%v", idx)
+				}
+			}
+			for header, val := range fieldFieldValueByHeader {
+				if _, ok := fieldValueByHeader[header]; !ok {
+					fieldValueByHeader[header] = val
+				} else {
+					return nil, nil, errors.Errorf("can not serialize struct with duplicate header:%v", header)
 				}
 			}
 		} else if tf.Type.Kind() == reflect.Ptr && !vf.IsZero() {
@@ -416,24 +624,31 @@ func serializeStruct(item reflect.Value, tp reflect.Type) (map[int]string, error
 				vv = vv.Elem()
 			}
 			if tt.Kind() == reflect.Struct && tt.String() != "time.Time" && !vv.IsZero() {
-				fieldFieldValueMap, err := serializeStruct(vv, tt)
+				fieldFieldValueMap, fieldFieldValueByHeader, err := serializeStruct(vv, tt)
 				if err != nil {
-					return nil, err
+					return nil, nil, err
 				}
 				for idx, val := range fieldFieldValueMap {
 					if _, ok := fieldValueMap[idx]; !ok {
 						fieldValueMap[idx] = val
 					} else {
-						return nil, errors.Errorf("can not serialize struct with duplicate order:%v", idx)
+						return nil, nil, errors.Errorf("can not serialize struct with duplicate order:%v", idx)
+					}
+				}
+				for header, val := range fieldFieldValueByHeader {
+					if _, ok := fieldValueByHeader[header]; !ok {
+						fieldValueByHeader[header] = val
+					} else {
+						return nil, nil, errors.Errorf("can not serialize struct with duplicate header:%v", header)
 					}
 				}
 			}
 		}
 	}
-	return fieldValueMap, nil
+	return fieldValueMap, fieldValueByHeader, nil
 }
 
-func xsvMarshalByHeader(item interface{}, meta *xsvMetadata) ([]string, error) {
+/*func xsvMarshalByHeader(item interface{}, meta *xsvMetadata) ([]string, error) {
 	refItem := reflect.ValueOf(item)
 	for refItem.Type().Kind() == reflect.Ptr && !refItem.IsZero() {
 		refItem = refItem.Elem()
@@ -462,11 +677,11 @@ func serializeStructByHeader(item reflect.Value, tp reflect.Type) (map[string]st
 		tf := tp.Field(i)
 		vf := item.Field(i)
 		if tf.Tag != "" && tf.Tag.Get("header") != "" {
-			header := tf.Tag.Get("header")
 			val, err := formatField(tf, vf)
 			if err != nil {
 				return nil, err
 			}
+			header := tf.Tag.Get("header")
 			if _, ok := fieldValueMap[header]; !ok {
 				fieldValueMap[header] = val
 			} else {
@@ -507,12 +722,12 @@ func serializeStructByHeader(item reflect.Value, tp reflect.Type) (map[string]st
 		}
 	}
 	return fieldValueMap, nil
-}
+}*/
 
 func formatField(tf reflect.StructField, vf reflect.Value) (string, error) {
 	val, err := formatVal(vf, tf.Type, tf.Tag)
 	if err != nil {
-		return "", errors.Errorf("format field[%v] err:%v", tf.Name, err)
+		return "", errors.Errorf("format field:%v err:%v", tf.Name, err)
 	}
 	return val, nil
 }

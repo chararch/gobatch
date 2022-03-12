@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	LocalFileStorage = "LocalFile"
+	LocalFileStorage = "File"
 	FTPFileStorage   = "FTP"
 )
 
@@ -28,7 +28,7 @@ const (
 	SHA512 = "SHA512"
 )
 
-type FileDescriptor struct {
+type FileObjectModel struct {
 	FileStore      FileStorage
 	FileName       string
 	Type           string
@@ -39,11 +39,18 @@ type FileDescriptor struct {
 	ItemPrototype  interface{}
 }
 
-func (fd *FileDescriptor) String() string {
-	return fmt.Sprintf("%s://%s", fd.FileStore, fd.FileName)
+type FileMove struct {
+	FromFileName  string
+	FromFileStore FileStorage
+	ToFileName    string
+	ToFileStore   FileStorage
 }
 
-func (fd *FileDescriptor) ItemType() (reflect.Type, error) {
+func (fd FileObjectModel) String() string {
+	return fmt.Sprintf("%s://%s", fd.FileStore.Name(), fd.FileName)
+}
+
+func (fd FileObjectModel) ItemType() (reflect.Type, error) {
 	prot := fd.ItemPrototype
 	tp := reflect.TypeOf(prot)
 	if tp.Kind() == reflect.Ptr {
@@ -56,35 +63,36 @@ func (fd *FileDescriptor) ItemType() (reflect.Type, error) {
 }
 
 type FileStorage interface {
+	Name() string
 	Exists(fileName string) (ok bool, err error)
 	Open(fileName, encoding string) (reader io.ReadCloser, err error)
 	Create(fileName, encoding string) (writer io.WriteCloser, err error)
 }
 
 type FileItemReader interface {
-	Open(fd FileDescriptor) (handle interface{}, err error)
+	Open(fd FileObjectModel) (handle interface{}, err error)
 	Close(handle interface{}) error
 	ReadItem(handle interface{}) (interface{}, error)
 	SkipTo(handle interface{}, pos int64) error
-	Count(fd FileDescriptor) (int64, error)
+	Count(fd FileObjectModel) (int64, error)
 }
 
 type FileItemWriter interface {
-	Open(fd FileDescriptor) (handle interface{}, err error)
+	Open(fd FileObjectModel) (handle interface{}, err error)
 	Close(handle interface{}) error
 	WriteItem(handle interface{}, data interface{}) error
 }
 
 type FileMerger interface {
-	Merge(src []FileDescriptor, dest FileDescriptor) (err error)
+	Merge(src []FileObjectModel, dest FileObjectModel) (err error)
 }
 
 type FileSplitter interface {
-	Split(src FileDescriptor, dest []FileDescriptor, strategy FileSplitStrategy) (err error)
+	Split(src FileObjectModel, dest []FileObjectModel, strategy FileSplitStrategy) (err error)
 }
 
 type FileSplitStrategy interface {
-	DecideDestNum(line string, dest []FileDescriptor) int
+	DecideDestNum(line string, dest []FileObjectModel) int
 }
 
 type MergeSplitter interface {
@@ -93,11 +101,11 @@ type MergeSplitter interface {
 }
 
 type ChecksumVerifier interface {
-	Verify(fd FileDescriptor) (bool, error)
+	Verify(fd FileObjectModel) (bool, error)
 }
 
 type ChecksumFlusher interface {
-	Checksum(fd FileDescriptor) error
+	Checksum(fd FileObjectModel) error
 }
 
 type Checksumer interface {
@@ -105,7 +113,7 @@ type Checksumer interface {
 	ChecksumFlusher
 }
 
-func Count(fd FileDescriptor) (int64, error) {
+func Count(fd FileObjectModel) (int64, error) {
 	fs := fd.FileStore
 	reader, err := fs.Open(fd.FileName, fd.Encoding)
 	if err != nil {
@@ -138,14 +146,25 @@ func Count(fd FileDescriptor) (int64, error) {
 	}
 }
 
-func Merge(src []FileDescriptor, dest FileDescriptor) error {
+func Merge(src []FileObjectModel, dest FileObjectModel) error {
 	destFs := dest.FileStore
 	writer, err := destFs.Create(dest.FileName, dest.Encoding)
 	if err != nil {
 		return err
 	}
-	defer writer.Close()
 	bufWriter := bufio.NewWriter(writer)
+	defer func() {
+		if er := bufWriter.Flush(); er != nil {
+			if err == nil {
+				err = er
+			}
+		}
+		if er := writer.Close(); er != nil {
+			if err == nil {
+				err = er
+			}
+		}
+	}()
 	for i, srcFd := range src {
 		err = copyFile(i, srcFd, bufWriter)
 		if err != nil {
@@ -155,7 +174,7 @@ func Merge(src []FileDescriptor, dest FileDescriptor) error {
 	return nil
 }
 
-func copyFile(idx int, srcFd FileDescriptor, writer *bufio.Writer) error {
+func copyFile(idx int, srcFd FileObjectModel, writer *bufio.Writer) error {
 	srcFs := srcFd.FileStore
 	reader, err := srcFs.Open(srcFd.FileName, srcFd.Encoding)
 	if err != nil {
@@ -208,7 +227,7 @@ func copyFile(idx int, srcFd FileDescriptor, writer *bufio.Writer) error {
 	return nil
 }
 
-func Split(srcFd FileDescriptor, destFds []FileDescriptor, strategy FileSplitStrategy) error {
+func Split(srcFd FileObjectModel, destFds []FileObjectModel, strategy FileSplitStrategy) error {
 	//open src file reader
 	srcFs := srcFd.FileStore
 	reader, err := srcFs.Open(srcFd.FileName, srcFd.Encoding)
@@ -218,7 +237,8 @@ func Split(srcFd FileDescriptor, destFds []FileDescriptor, strategy FileSplitStr
 	defer reader.Close()
 	bufReader := bufio.NewReader(reader)
 	//open dest file writers
-	writers := make([]io.Writer, 0)
+	writers := make([]io.WriteCloser, 0)
+	bufWriters := make([]*bufio.Writer, 0)
 	for _, destFd := range destFds {
 		destFs := destFd.FileStore
 		writer, err := destFs.Create(destFd.FileName, destFd.Encoding)
@@ -226,7 +246,17 @@ func Split(srcFd FileDescriptor, destFds []FileDescriptor, strategy FileSplitStr
 			return err
 		}
 		writers = append(writers, writer)
+		bufWriters = append(bufWriters, bufio.NewWriter(writer))
 	}
+	//close writers
+	defer func() {
+		for i, writer := range writers {
+			bufWriters[i].Flush()
+			if err := writer.Close(); err != nil {
+				//
+			}
+		}
+	}()
 	//write header
 	if srcFd.Header && (srcFd.Type == TSV || srcFd.Type == CSV) {
 		header, err := bufReader.ReadString('\n') //read first line
@@ -236,8 +266,8 @@ func Split(srcFd FileDescriptor, destFds []FileDescriptor, strategy FileSplitStr
 		header = strings.TrimSpace(header)
 		if header != "" {
 			header = fmt.Sprintf("%s\n", header)
-			for _, writer := range writers {
-				_, er := writer.Write([]byte(header))
+			for _, bufWriter := range bufWriters {
+				_, er := bufWriter.Write([]byte(header))
 				if er != nil {
 					return er
 				}
@@ -259,7 +289,7 @@ func Split(srcFd FileDescriptor, destFds []FileDescriptor, strategy FileSplitStr
 					line = line + "\n"
 				}
 				destNum := strategy.DecideDestNum(line, destFds)
-				_, er := writers[destNum].Write([]byte(line))
+				_, er := bufWriters[destNum].Write([]byte(line))
 				if er != nil {
 					return er
 				}
@@ -267,7 +297,7 @@ func Split(srcFd FileDescriptor, destFds []FileDescriptor, strategy FileSplitStr
 			break
 		}
 		destNum := strategy.DecideDestNum(line, destFds)
-		_, er := writers[destNum].Write([]byte(line))
+		_, er := bufWriters[destNum].Write([]byte(line))
 		if er != nil {
 			return er
 		}

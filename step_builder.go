@@ -78,7 +78,7 @@ func (builder *stepBuilder) Handler(handler interface{}) *stepBuilder {
 				case BatchError:
 					return et
 				default:
-					return NewBatchError(ErrCodeGeneral, "execute step[%v] error", execution.StepName, e)
+					return NewBatchError(ErrCodeGeneral, "execute step:%v error", execution.StepName, e)
 				}
 			}
 			return nil
@@ -167,7 +167,7 @@ func (builder *stepBuilder) Writer(writer Writer) *stepBuilder {
 	return builder
 }
 
-func (builder *stepBuilder) ReadFile(fd file.FileDescriptor, readers ...interface{}) *stepBuilder {
+func (builder *stepBuilder) ReadFile(fd file.FileObjectModel, readers ...interface{}) *stepBuilder {
 	fr := &fileReader{fd: fd}
 	if len(readers) > 0 {
 		for _, r := range readers {
@@ -189,7 +189,7 @@ func (builder *stepBuilder) ReadFile(fd file.FileDescriptor, readers ...interfac
 	return builder
 }
 
-func (builder *stepBuilder) WriteFile(fd file.FileDescriptor, writers ...interface{}) *stepBuilder {
+func (builder *stepBuilder) WriteFile(fd file.FileObjectModel, writers ...interface{}) *stepBuilder {
 	fw := &fileWriter{fd: fd}
 	if len(writers) > 0 {
 		for _, w := range writers {
@@ -213,6 +213,11 @@ func (builder *stepBuilder) WriteFile(fd file.FileDescriptor, writers ...interfa
 		fw.merger = file.GetFileMergeSplitter(fw.fd.Type)
 	}
 	builder.writer = fw
+	return builder
+}
+
+func (builder *stepBuilder) CopyFile(filesToMove ...file.FileMove) *stepBuilder {
+	builder.handler = &fileCopyHandler{filesToMove: filesToMove}
 	return builder
 }
 

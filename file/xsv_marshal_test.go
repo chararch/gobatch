@@ -38,7 +38,8 @@ type Innner3 struct {
 
 func TestUnmarshalByOrder(t *testing.T) {
 	fields := []string{"", "111", "T", "100", "init", "5", "0.2", "0.5", "2021-12-02 22:10:10", "abc", "10", "20211202", "Y"}
-	r, err := xsvUnmarshalByOrder(fields, reflect.TypeOf(Outer{}))
+	//r, err := xsvUnmarshalByOrder(fields, reflect.TypeOf(Outer{}))
+	r, err := xsvUnmarshal(fields, slice2Map(fields), reflect.TypeOf(Outer{}))
 	if err != nil {
 		panic(err)
 	}
@@ -160,17 +161,20 @@ func TestMarshalByHeader(t *testing.T) {
 		log.Printf("err:%v\n", err)
 		panic(err)
 	}
-	assert.Equal(t, len(fields), 11)
-	assert.Equal(t, fields[0], "123")
-	assert.Equal(t, fields[1], "simple")
-	assert.Equal(t, fields[2], "1000")
-	assert.Equal(t, fields[3], "init")
-	assert.Equal(t, fields[4], "YES")
-	assert.Equal(t, fields[5], "20211202")
-	assert.Equal(t, fields[6], "10")
-	assert.Equal(t, fields[7], "3.14")
-	assert.Equal(t, fields[8], "1.58")
-	assert.Equal(t, fields[9], "2021-12-02")
-	assert.Equal(t, fields[10], "aaa")
-	log.Printf("%v\n", fields)
+	assert.Equal(t, len(fields), 13)
+	assert.Equal(t, fields[0], "")
+	assert.Equal(t, fields[1], "123")
+	assert.Equal(t, fields[2], "simple")
+	assert.Equal(t, fields[3], "1000")
+	assert.Equal(t, fields[4], "init")
+	assert.Equal(t, fields[5], "10")
+	assert.Equal(t, fields[6], "3.14")
+	assert.Equal(t, fields[7], "1.58")
+	assert.Equal(t, fields[8], "2021-12-02")
+	assert.Equal(t, fields[9], "aaa")
+	assert.Equal(t, fields[10], "0")
+	assert.Equal(t, fields[11], "20211202")
+	assert.Equal(t, fields[12], "YES")
+	log.Printf("header:%v\n", meta.structFields)
+	log.Printf("values:%v\n", fields)
 }

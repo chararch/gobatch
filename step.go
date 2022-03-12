@@ -312,7 +312,7 @@ func (step *chunkStep) doCloseIfNecessary(execution *StepExecution) BatchError {
 func (step *chunkStep) doChunk(ctx context.Context, chunk *ChunkContext, input *chunk, output *chunk) (err BatchError) {
 	defer func() {
 		if er := recover(); er != nil {
-			logger.Error(ctx, "panic on chunk executing, jobExecutionId:%v, stepName:%v, err:%v, stack:%v", chunk.StepExecution.JobExecution.JobExecutionId, chunk.StepExecution.StepName, er, debug.Stack())
+			logger.Error(ctx, "panic on chunk executing, jobExecutionId:%v, stepName:%v, err:%v, stack:%v", chunk.StepExecution.JobExecution.JobExecutionId, chunk.StepExecution.StepName, er, string(debug.Stack()))
 			err = NewBatchError(ErrCodeGeneral, "panic on chunk executing, jobExecutionId:%v, stepName:%v", chunk.StepExecution.JobExecution.JobExecutionId, chunk.StepExecution.StepName, er)
 		}
 	}()
@@ -561,7 +561,7 @@ func (step *partitionStep) split(ctx context.Context, execution *StepExecution, 
 	if execution.StepExecutionContext.Exists(PartitionStepPartitionsKey) {
 		savedPartitions, e := execution.StepExecutionContext.GetInt(PartitionStepPartitionsKey, int(partitions))
 		if e != nil {
-			return nil, NewBatchError(ErrCodeGeneral, "get '%v' from step[%v] execution context failed", PartitionStepPartitionsKey, execution.StepName, e)
+			return nil, NewBatchError(ErrCodeGeneral, "get '%v' from step:%v execution context failed", PartitionStepPartitionsKey, execution.StepName, e)
 		}
 		logger.Info(ctx, "split step:%v, saved partitions in StepExecutionContext:%v, try to get last splitted subExecutions", execution.StepName, savedPartitions)
 		subExecutions := make([]*StepExecution, 0, savedPartitions)
@@ -580,7 +580,7 @@ func (step *partitionStep) split(ctx context.Context, execution *StepExecution, 
 				if lastStepExecution.StepStatus == status.COMPLETED {
 					continue
 				}
-				if lastStepExecution.StepContext.Exists(ItemReaderKeyList) {
+				if lastStepExecution.StepContextId != 0 {
 					subExecution := lastStepExecution.deepCopy()
 					subExecution.StepContextId = lastStepExecution.StepContextId
 					//subExecution.StepName = partitionName

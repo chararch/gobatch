@@ -38,19 +38,19 @@ func (f *FilePath) Format(execution *StepExecution) (string, error) {
 			} else if execution.JobExecution.JobContext.Exists(param) {
 				paramVal = execution.JobExecution.JobContext.Get(param)
 			} else {
-				err = errors.Errorf("can not find param[%v]", param)
+				err = errors.Errorf("can not find param:%v", param)
 			}
 		} else if category == "job" {
 			if execution.JobExecution.JobContext.Exists(param) {
 				paramVal = execution.JobExecution.JobContext.Get(param)
 			} else {
-				err = errors.Errorf("can not find param[%v] in JobExecution", param)
+				err = errors.Errorf("can not find param:%v in JobExecution", param)
 			}
 		} else if category == "step" {
 			if execution.StepContext.Exists(param) {
 				paramVal = execution.StepContext.Get(param)
 			} else {
-				err = errors.Errorf("can not find param[%v] in StepExecution", param)
+				err = errors.Errorf("can not find param:%v in StepExecution", param)
 			}
 		} else {
 			err = errors.Errorf("unsupported param category: %v", category)
@@ -70,8 +70,10 @@ func formatParam(val interface{}, format string) (string, error) {
 	if val == nil {
 		return "", nil
 	}
-	//format date
-	if dateFmtRegexp.MatchString(format) {
+	if format == "" {
+		return fmt.Sprintf("%v", val), nil
+	} else if dateFmtRegexp.MatchString(format) {
+		//format date
 		format = strings.ReplaceAll(format, "yyyy", "2006")
 		format = strings.ReplaceAll(format, "MM", "01")
 		format = strings.ReplaceAll(format, "dd", "02")
@@ -83,28 +85,23 @@ func formatParam(val interface{}, format string) (string, error) {
 			return "", err
 		}
 		return dt.Format(format), nil
-	}
-	//format number
-	idx := strings.Index(format, "#")
-	digit := 0
-	var err error
-	if idx == 0 {
-		digit, err = strconv.Atoi(format[1:])
-	} else if idx > 0 {
-		digit, err = strconv.Atoi(format[0:idx])
-	}
-	if err != nil {
-		return "", errors.Errorf("unsupported format:%v", format)
-	}
-	val, err = parseInteger(val)
-	if err != nil {
-		return "", err
-	}
-	return fmt.Sprintf(fmt.Sprintf("%%%vd", digit), val), nil
-
-	//format anything
-	if format == "" {
-		return fmt.Sprintf("%v", val), nil
+	} else if idx := strings.Index(format, "#"); idx >= 0 {
+		//format number
+		digit := 0
+		var err error
+		if idx == 0 {
+			digit, err = strconv.Atoi(format[1:])
+		} else if idx > 0 {
+			digit, err = strconv.Atoi(format[0:idx])
+		}
+		if err != nil {
+			return "", errors.Errorf("unsupported format:%v", format)
+		}
+		val, err = parseInteger(val)
+		if err != nil {
+			return "", err
+		}
+		return fmt.Sprintf(fmt.Sprintf("%%%vd", digit), val), nil
 	} else {
 		return "", errors.Errorf("unsupported format:%v", format)
 	}

@@ -9,13 +9,13 @@ import (
 )
 
 type tsvReader struct {
-	fd        FileDescriptor
+	fd        FileObjectModel
 	reader    io.ReadCloser
 	bufReader *bufio.Reader
 	metadata  *xsvMetadata
 }
 type tsvWriter struct {
-	fd        FileDescriptor
+	fd        FileObjectModel
 	writer    io.WriteCloser
 	bufWriter *bufio.Writer
 	metadata  *xsvMetadata
@@ -24,7 +24,7 @@ type tsvWriter struct {
 type tsvFileItemReader struct {
 }
 
-func (r *tsvFileItemReader) Open(fd FileDescriptor) (interface{}, error) {
+func (r *tsvFileItemReader) Open(fd FileObjectModel) (interface{}, error) {
 	if fd.Type != TSV {
 		return nil, errors.New("file type doesn't match tsvFileItemReader")
 	}
@@ -41,19 +41,25 @@ func (r *tsvFileItemReader) Open(fd FileDescriptor) (interface{}, error) {
 		tp = tp.Elem()
 	}
 	if tp.Kind() != reflect.Struct {
-		reader.Close()
+		if er := reader.Close(); er != nil {
+			//
+		}
 		return nil, errors.New("the underlying type of ItemPrototype is not struct for " + fd.FileName)
 	}
 	metadata, err := getMetadata(tp)
 	if err != nil {
-		reader.Close()
+		if er := reader.Close(); er != nil {
+			//
+		}
 		return nil, err
 	}
 	handle := &tsvReader{fd, reader, bufReader, metadata}
 	if fd.Header {
 		line, err := bufReader.ReadString('\n')
 		if err != nil {
-			reader.Close()
+			if er := reader.Close(); er != nil {
+				//
+			}
 			return nil, err
 		}
 		sep := getFieldSeparator(fd)
@@ -79,7 +85,7 @@ func (r *tsvFileItemReader) ReadItem(handle interface{}) (interface{}, error) {
 	metadata := fdr.metadata
 	var val reflect.Value
 	if fdr.fd.Header {
-		val, err = xsvUnmarshalByHeader(fields, metadata.fileHeaderMap, metadata.structType)
+		val, err = xsvUnmarshal(fields, metadata.fileHeaderMap, metadata.structType)
 	} else {
 		val, err = xsvUnmarshalByOrder(fields, metadata.structType)
 	}
@@ -88,7 +94,7 @@ func (r *tsvFileItemReader) ReadItem(handle interface{}) (interface{}, error) {
 	}
 	return val.Interface(), nil
 }
-func getFieldSeparator(fd FileDescriptor) string {
+func getFieldSeparator(fd FileObjectModel) string {
 	sep := fd.FieldSeparator
 	if sep == "" {
 		sep = "\t"
@@ -105,14 +111,14 @@ func (r *tsvFileItemReader) SkipTo(handle interface{}, pos int64) error {
 	}
 	return nil
 }
-func (r *tsvFileItemReader) Count(fd FileDescriptor) (int64, error) {
+func (r *tsvFileItemReader) Count(fd FileObjectModel) (int64, error) {
 	return Count(fd)
 }
 
 type tsvFileItemWriter struct {
 }
 
-func (r *tsvFileItemWriter) Open(fd FileDescriptor) (interface{}, error) {
+func (r *tsvFileItemWriter) Open(fd FileObjectModel) (interface{}, error) {
 	if fd.Type != TSV {
 		return nil, errors.New("file type doesn't match tsvFileItemWriter")
 	}
@@ -145,16 +151,21 @@ func (r *tsvFileItemWriter) Open(fd FileDescriptor) (interface{}, error) {
 }
 func (r *tsvFileItemWriter) Close(handle interface{}) error {
 	fdw := handle.(*tsvWriter)
-	return fdw.writer.Close()
+	defer func() {
+		if err := fdw.writer.Close(); err != nil {
+			//
+		}
+	}()
+	return fdw.bufWriter.Flush()
 }
 func (r *tsvFileItemWriter) WriteItem(handle interface{}, item interface{}) error {
 	fdw := handle.(*tsvWriter)
 	var fields []string
 	var err error
 	if fdw.fd.Header {
-		fields, err = xsvMarshalByHeader(item, fdw.metadata)
+		fields, err = xsvMarshal(item, fdw.metadata)
 	} else {
-		fields, err = xsvMarshalByOrder(item, fdw.metadata)
+		fields, err = xsvMarshal(item, fdw.metadata)
 	}
 	if err != nil {
 		return err
@@ -166,11 +177,11 @@ func (r *tsvFileItemWriter) WriteItem(handle interface{}, item interface{}) erro
 
 type tsvFileMergeSplitter struct {
 }
-func (r *tsvFileMergeSplitter) Merge(src []FileDescriptor, dest FileDescriptor) error {
+func (r *tsvFileMergeSplitter) Merge(src []FileObjectModel, dest FileObjectModel) error {
 	err := Merge(src, dest)
 	return err
 }
-func (r *tsvFileMergeSplitter) Split(src FileDescriptor, dest []FileDescriptor, strategy FileSplitStrategy) error {
+func (r *tsvFileMergeSplitter) Split(src FileObjectModel, dest []FileObjectModel, strategy FileSplitStrategy) error {
 	err := Split(src, dest, strategy)
 	return err
 }

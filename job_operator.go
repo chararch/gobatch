@@ -13,7 +13,7 @@ var jobRegistry = make(map[string]Job)
 
 func Register(job Job) error {
 	if _, ok := jobRegistry[job.Name()]; ok {
-		return fmt.Errorf("job with name[%v] has already been registered", job.Name())
+		return fmt.Errorf("job with name:%v has already been registered", job.Name())
 	}
 	jobRegistry[job.Name()] = job
 	return nil
@@ -105,8 +105,8 @@ func doStart(ctx context.Context, jobName string, params string, async bool) (in
 			}
 		}
 	} else {
-		logger.Error(ctx, "can not find job with name[%v]", jobName)
-		return -1, errors.Errorf("can not find job with name[%v]", jobName)
+		logger.Error(ctx, "can not find job with name:%v", jobName)
+		return -1, errors.Errorf("can not find job with name:%v", jobName)
 	}
 }
 
@@ -142,16 +142,16 @@ func Stop(ctx context.Context, jobId interface{}) error {
 					logger.Info(ctx, "job will be stopped, jobName:%v, jobExecutionId:%v", job.Name(), execution.JobExecutionId)
 					return job.Stop(ctx, execution)
 				} else {
-					logger.Error(ctx, "there is no running job instance with name[%v] to stop", id)
-					return errors.Errorf("there is no running job instance with name[%v] to stop", id)
+					logger.Error(ctx, "there is no running job instance with name:%v to stop", id)
+					return errors.Errorf("there is no running job instance with name:%v to stop", id)
 				}
 			} else {
-				logger.Error(ctx, "there is no running job instance with name[%v] to stop", id)
-				return errors.Errorf("there is no running job instance with name[%v] to stop", id)
+				logger.Error(ctx, "there is no running job instance with name:%v to stop", id)
+				return errors.Errorf("there is no running job instance with name:%v to stop", id)
 			}
 		} else {
-			logger.Error(ctx, "can not find job with name[%v]", id)
-			return errors.Errorf("can not find job with name[%v]", id)
+			logger.Error(ctx, "can not find job with name:%v", id)
+			return errors.Errorf("can not find job with name:%v", id)
 		}
 	case int64:
 		//find executions by execution id, if found then stop
@@ -167,8 +167,8 @@ func Stop(ctx context.Context, jobId interface{}) error {
 		if job, ok := jobRegistry[execution.JobName]; ok {
 			return job.Stop(ctx, execution)
 		} else {
-			logger.Error(ctx, "can not find job with name[%v]", execution.JobName)
-			return errors.Errorf("can not find job with name[%v]", execution.JobName)
+			logger.Error(ctx, "can not find job with name:%v", execution.JobName)
+			return errors.Errorf("can not find job with name:%v", execution.JobName)
 		}
 	}
 	logger.Error(ctx, "job identifier:%v is either job name or job execution id", jobId)
@@ -200,8 +200,8 @@ func doRestart(ctx context.Context, jobId interface{}, async bool) (int64, error
 				return doStart(ctx, job.Name(), "", async)
 			}
 		} else {
-			logger.Error(ctx, "can not find job with name[%v]", id)
-			return -1, errors.Errorf("can not find job with name[%v]", id)
+			logger.Error(ctx, "can not find job with name:%v", id)
+			return -1, errors.Errorf("can not find job with name:%v", id)
 		}
 	case int64:
 		//find executions by execution id, then start
@@ -218,8 +218,8 @@ func doRestart(ctx context.Context, jobId interface{}, async bool) (int64, error
 			params, _ := util.JsonString(execution.JobParams)
 			return doStart(ctx, job.Name(), params, async)
 		} else {
-			logger.Error(ctx, "can not find job with name[%v]", execution.JobName)
-			return -1, errors.Errorf("can not find job with name[%v]", execution.JobName)
+			logger.Error(ctx, "can not find job with name:%v", execution.JobName)
+			return -1, errors.Errorf("can not find job with name:%v", execution.JobName)
 		}
 	}
 	logger.Error(ctx, "job identifier:%v is either job name or job execution id", jobId)

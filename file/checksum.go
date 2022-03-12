@@ -14,7 +14,7 @@ import (
 type OKFlagChecksumer struct {
 }
 
-func (ch *OKFlagChecksumer) Verify(fd FileDescriptor) (bool, error) {
+func (ch *OKFlagChecksumer) Verify(fd FileObjectModel) (bool, error) {
 	fs := fd.FileStore
 	ok, err := fs.Exists(fd.FileName)
 	if err != nil {
@@ -45,7 +45,7 @@ func (ch *OKFlagChecksumer) Verify(fd FileDescriptor) (bool, error) {
 	return false, nil
 }
 
-func (ch *OKFlagChecksumer) Checksum(fd FileDescriptor) error {
+func (ch *OKFlagChecksumer) Checksum(fd FileObjectModel) error {
 	fs := fd.FileStore
 	okFile := fd.FileName + ".ok"
 	w, err := fs.Create(okFile, fd.Encoding)
@@ -57,41 +57,41 @@ func (ch *OKFlagChecksumer) Checksum(fd FileDescriptor) error {
 
 type MD5Checksumer struct {
 }
-func (ch *MD5Checksumer) Verify(fd FileDescriptor) (bool, error) {
+func (ch *MD5Checksumer) Verify(fd FileObjectModel) (bool, error) {
 	return verify(fd, MD5, md5.New())
 }
-func (ch *MD5Checksumer) Checksum(fd FileDescriptor) error {
+func (ch *MD5Checksumer) Checksum(fd FileObjectModel) error {
 	return checksum(fd, MD5, md5.New())
 }
 
 type SHA1Checksumer struct {
 }
-func (ch *SHA1Checksumer) Verify(fd FileDescriptor) (bool, error) {
+func (ch *SHA1Checksumer) Verify(fd FileObjectModel) (bool, error) {
 	return verify(fd, SHA1, sha1.New())
 }
-func (ch *SHA1Checksumer) Checksum(fd FileDescriptor) error {
+func (ch *SHA1Checksumer) Checksum(fd FileObjectModel) error {
 	return checksum(fd, SHA1, sha1.New())
 }
 
 type SHA256Checksumer struct {
 }
-func (ch *SHA256Checksumer) Verify(fd FileDescriptor) (bool, error) {
+func (ch *SHA256Checksumer) Verify(fd FileObjectModel) (bool, error) {
 	return verify(fd, SHA256, sha256.New())
 }
-func (ch *SHA256Checksumer) Checksum(fd FileDescriptor) error {
+func (ch *SHA256Checksumer) Checksum(fd FileObjectModel) error {
 	return checksum(fd, SHA256, sha256.New())
 }
 
 type SHA512Checksumer struct {
 }
-func (ch *SHA512Checksumer) Verify(fd FileDescriptor) (bool, error) {
+func (ch *SHA512Checksumer) Verify(fd FileObjectModel) (bool, error) {
 	return verify(fd, SHA512, sha512.New())
 }
-func (ch *SHA512Checksumer) Checksum(fd FileDescriptor) error {
+func (ch *SHA512Checksumer) Checksum(fd FileObjectModel) error {
 	return checksum(fd, SHA512, sha512.New())
 }
 
-func verify(fd FileDescriptor, alg string, digest hash.Hash) (bool, error) {
+func verify(fd FileObjectModel, alg string, digest hash.Hash) (bool, error) {
 	fs := fd.FileStore
 	ok, err := fs.Exists(fd.FileName)
 	if err != nil {
@@ -158,7 +158,7 @@ func verify(fd FileDescriptor, alg string, digest hash.Hash) (bool, error) {
 
 	return hashVal == fileHash, nil
 }
-func checksum(fd FileDescriptor, alg string, digest hash.Hash) error {
+func checksum(fd FileObjectModel, alg string, digest hash.Hash) error {
 	fs := fd.FileStore
 	//calc checksum from file
 	reader, err := fs.Open(fd.FileName, fd.Encoding)
@@ -178,7 +178,7 @@ func checksum(fd FileDescriptor, alg string, digest hash.Hash) error {
 	if err != nil {
 		return err
 	}
-	w.Close()
+	defer w.Close()
 	_, err = w.Write([]byte(fileHash))
 	return err
 }

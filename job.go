@@ -80,6 +80,7 @@ func (job *simpleJob) Start(ctx context.Context, execution *JobExecution) (err B
 			break
 		}
 		if execution.JobStatus == status.FAILED || execution.JobStatus == status.UNKNOWN {
+			jobStatus = execution.JobStatus
 			break
 		}
 	}
@@ -117,7 +118,7 @@ func execStep(ctx context.Context, step Step, execution *JobExecution) (err Batc
 	}
 	if lastStepExecution != nil && (lastStepExecution.StepStatus == status.STARTING || lastStepExecution.StepStatus == status.STARTED || lastStepExecution.StepStatus == status.STOPPING) {
 		logger.Error(ctx, "last StepExecution is in progress, jobExecutionId:%v, stepName:%v", execution.JobExecutionId, step.Name())
-		return NewBatchError(ErrCodeConcurrency, "last StepExecution of the Step[%v] is in progress", step.Name())
+		return NewBatchError(ErrCodeConcurrency, "last StepExecution of the Step:%v is in progress", step.Name())
 	}
 	stepExecution := &StepExecution{
 		StepName:             step.Name(),
@@ -149,6 +150,7 @@ func execStep(ctx context.Context, step Step, execution *JobExecution) (err Batc
 			stepExecution.EndTime = time.Now()
 			execution.JobStatus = status.FAILED
 		}
+		execution.JobStatus = status.FAILED
 		execution.FailError = err
 		execution.EndTime = time.Now()
 		e = saveStepExecution(ctx, stepExecution)

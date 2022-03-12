@@ -79,11 +79,11 @@ func NewBatchError(code string, msg string, args ...interface{}) BatchError {
 		if e, ok := lastArg.(error); ok {
 			args = args[0:len(args)-1]
 			if len(args) > 0 {
-				msg = fmt.Sprintf(msg, args)
+				msg = fmt.Sprintf(msg, args...)
 			}
 			err = errors.WithStack(e)
 		} else {
-			msg = fmt.Sprintf(msg, args)
+			msg = fmt.Sprintf(msg, args...)
 			err = errors.New("")
 		}
 	} else {

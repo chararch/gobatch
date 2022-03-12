@@ -15,7 +15,7 @@ const (
 )
 
 type fileReader struct {
-	fd       file.FileDescriptor
+	fd       file.FileObjectModel
 	reader   file.FileItemReader
 	verifier file.ChecksumVerifier
 }
@@ -26,7 +26,7 @@ func (r *fileReader) Open(execution *StepExecution) BatchError {
 	fp := &FilePath{fd.FileName}
 	fileName, err := fp.Format(execution)
 	if err != nil {
-		return NewBatchError(ErrCodeGeneral, "get real file path:%v err:%v", fd.FileName, err)
+		return NewBatchError(ErrCodeGeneral, "get real file path:%v err", fd.FileName, err)
 	}
 	fd.FileName = fileName
 	//verify checksum
@@ -35,14 +35,14 @@ func (r *fileReader) Open(execution *StepExecution) BatchError {
 		if checksumer != nil {
 			ok, err := checksumer.Verify(fd)
 			if err != nil || !ok {
-				return NewBatchError(ErrCodeGeneral, "verify file checksum[%v], ok:%v err:%v", fd, ok, err)
+				return NewBatchError(ErrCodeGeneral, "verify file checksum:%v, ok:%v err", fd, ok, err)
 			}
 		}
 	}
 	//read file
 	handle, e := r.reader.Open(fd)
 	if e != nil {
-		return NewBatchError(ErrCodeGeneral, "open file reader[%v] err:%v", fd, e)
+		return NewBatchError(ErrCodeGeneral, "open file reader:%v err", fd, e)
 	}
 	execution.StepExecutionContext.Put(FileItemReaderHandleKey, handle)
 	execution.StepExecutionContext.Put(FileItemReaderFileNameKey, fd.FileName)
@@ -50,7 +50,7 @@ func (r *fileReader) Open(execution *StepExecution) BatchError {
 	currentIndex, _ := executionCtx.GetInt64(FileItemReaderCurrentIndex)
 	err = r.reader.SkipTo(handle, currentIndex)
 	if err != nil {
-		return NewBatchError(ErrCodeGeneral, "skip to file item [%v] [%v] err:%v", fd, currentIndex, err)
+		return NewBatchError(ErrCodeGeneral, "skip to file item:%v pos:%v err", fd, currentIndex, err)
 	}
 	return nil
 }
@@ -65,7 +65,7 @@ func (r *fileReader) Read(chunkCtx *ChunkContext) (interface{}, BatchError) {
 	if currentIndex < endPos {
 		item, e := r.reader.ReadItem(handle)
 		if e != nil {
-			return nil, NewBatchError(ErrCodeGeneral, "read item from file[%v] err:%v", fileName, e)
+			return nil, NewBatchError(ErrCodeGeneral, "read item from file:%v err", fileName, e)
 		}
 		executionCtx.Put(FileItemReaderCurrentIndex, currentIndex+1)
 		return item, nil
@@ -80,7 +80,7 @@ func (r *fileReader) Close(execution *StepExecution) BatchError {
 	executionCtx.Remove(FileItemReaderHandleKey)
 	e := r.reader.Close(handle)
 	if e != nil {
-		return NewBatchError(ErrCodeGeneral, "close file reader[%v] err:%v", fileName, e)
+		return NewBatchError(ErrCodeGeneral, "close file reader:%v err", fileName, e)
 	}
 	return nil
 }
@@ -95,7 +95,7 @@ func (r *fileReader) GetPartitioner(minPartitionSize, maxPartitionSize uint) Par
 }
 
 type filePartitioner struct {
-	fd               file.FileDescriptor
+	fd               file.FileObjectModel
 	reader           file.FileItemReader
 	minPartitionSize uint
 	maxPartitionSize uint
@@ -104,7 +104,7 @@ type filePartitioner struct {
 func (p *filePartitioner) Partition(execution *StepExecution, partitions uint) (subExecutions []*StepExecution, e BatchError) {
 	defer func() {
 		if err := recover(); err != nil {
-			e = NewBatchError(ErrCodeGeneral, "panic on Partition in filePartitioner, err:%v", err)
+			e = NewBatchError(ErrCodeGeneral, "panic on Partition in filePartitioner, err", err)
 		}
 	}()
 	// get actual file name
@@ -112,7 +112,7 @@ func (p *filePartitioner) Partition(execution *StepExecution, partitions uint) (
 	fp := &FilePath{fd.FileName}
 	fileName, err := fp.Format(execution)
 	if err != nil {
-		return nil, NewBatchError(ErrCodeGeneral, "get real file path:%v err:%v", fd.FileName, err)
+		return nil, NewBatchError(ErrCodeGeneral, "get real file path:%v err", fd.FileName, err)
 	}
 	fd.FileName = fileName
 	//verify checksum
@@ -121,7 +121,7 @@ func (p *filePartitioner) Partition(execution *StepExecution, partitions uint) (
 		if checksumer != nil {
 			ok, err := checksumer.Verify(fd)
 			if err != nil || !ok {
-				return nil, NewBatchError(ErrCodeGeneral, "verify file checksum[%v], ok:%v err:%v", fd, ok, err)
+				return nil, NewBatchError(ErrCodeGeneral, "verify file checksum:%v, ok:%v err", fd, ok, err)
 			}
 		}
 	}

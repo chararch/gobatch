@@ -9,13 +9,13 @@ import (
 )
 
 type jsonReader struct {
-	fd         FileDescriptor
+	fd         FileObjectModel
 	reader     io.ReadCloser
 	bufReader  *bufio.Reader
 	structType reflect.Type
 }
 type jsonWriter struct {
-	fd        FileDescriptor
+	fd        FileObjectModel
 	writer    io.WriteCloser
 	bufWriter *bufio.Writer
 }
@@ -23,7 +23,7 @@ type jsonWriter struct {
 type jsonFileItemReader struct {
 }
 
-func (r *jsonFileItemReader) Open(fd FileDescriptor) (interface{}, error) {
+func (r *jsonFileItemReader) Open(fd FileObjectModel) (interface{}, error) {
 	if fd.Type != JSON {
 		return nil, errors.New("file type doesn't match jsonFileItemReader")
 	}
@@ -68,14 +68,14 @@ func (r *jsonFileItemReader) SkipTo(handle interface{}, pos int64) error {
 	}
 	return nil
 }
-func (r *jsonFileItemReader) Count(fd FileDescriptor) (int64, error) {
+func (r *jsonFileItemReader) Count(fd FileObjectModel) (int64, error) {
 	return Count(fd)
 }
 
 type jsonFileItemWriter struct {
 }
 
-func (r *jsonFileItemWriter) Open(fd FileDescriptor) (interface{}, error) {
+func (r *jsonFileItemWriter) Open(fd FileObjectModel) (interface{}, error) {
 	if fd.Type != JSON {
 		return nil, errors.New("file type doesn't match jsonFileItemWriter")
 	}
@@ -89,7 +89,12 @@ func (r *jsonFileItemWriter) Open(fd FileDescriptor) (interface{}, error) {
 }
 func (r *jsonFileItemWriter) Close(handle interface{}) error {
 	fdw := handle.(*jsonWriter)
-	return fdw.writer.Close()
+	defer func() {
+		if err := fdw.writer.Close(); err != nil {
+			//
+		}
+	}()
+	return fdw.bufWriter.Flush()
 }
 func (r *jsonFileItemWriter) WriteItem(handle interface{}, item interface{}) error {
 	fdw := handle.(*jsonWriter)
@@ -103,11 +108,11 @@ func (r *jsonFileItemWriter) WriteItem(handle interface{}, item interface{}) err
 
 type jsonFileMergeSplitter struct {
 }
-func (r *jsonFileMergeSplitter) Merge(src []FileDescriptor, dest FileDescriptor) error {
+func (r *jsonFileMergeSplitter) Merge(src []FileObjectModel, dest FileObjectModel) error {
 	err := Merge(src, dest)
 	return err
 }
-func (r *jsonFileMergeSplitter) Split(src FileDescriptor, dest []FileDescriptor, strategy FileSplitStrategy) error {
+func (r *jsonFileMergeSplitter) Split(src FileObjectModel, dest []FileObjectModel, strategy FileSplitStrategy) error {
 	err := Split(src, dest, strategy)
 	return err
 }

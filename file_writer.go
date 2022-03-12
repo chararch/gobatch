@@ -12,7 +12,7 @@ const (
 )
 
 type fileWriter struct {
-	fd        file.FileDescriptor
+	fd        file.FileObjectModel
 	writer    file.FileItemWriter
 	checkumer file.ChecksumFlusher
 	merger    file.FileMerger
@@ -25,7 +25,7 @@ func (w *fileWriter) Open(execution *StepExecution) BatchError {
 	fp := &FilePath{fd.FileName}
 	fileName, err := fp.Format(execution)
 	if err != nil {
-		return NewBatchError(ErrCodeGeneral, "get real file path:%v err:%v", fd.FileName, err)
+		return NewBatchError(ErrCodeGeneral, "get real file path:%v err", fd.FileName, err)
 	}
 	fd.FileName = fileName
 	if strings.Index(stepName, ":") > 0 { //may be a partitioned step
@@ -33,7 +33,7 @@ func (w *fileWriter) Open(execution *StepExecution) BatchError {
 	}
 	handle, e := w.writer.Open(fd)
 	if e != nil {
-		return NewBatchError(ErrCodeGeneral, "open file writer[%v] err:%v", fd.FileName, e)
+		return NewBatchError(ErrCodeGeneral, "open file writer:%v err", fd.FileName, e)
 	}
 	execution.StepExecutionContext.Put(FileItemWriterHandleKey, handle)
 	execution.StepExecutionContext.Put(FileItemWriterFileNameKey, fd.FileName)
@@ -46,7 +46,7 @@ func (w *fileWriter) Write(items []interface{}, chunkCtx *ChunkContext) BatchErr
 	for _, item := range items {
 		e := w.writer.WriteItem(handle, item)
 		if e != nil {
-			return NewBatchError(ErrCodeGeneral, "write item to file[%v] err:%v", fileName, e)
+			return NewBatchError(ErrCodeGeneral, "write item to file:%v err", fileName, e)
 		}
 	}
 	return nil
@@ -58,7 +58,7 @@ func (w *fileWriter) Close(execution *StepExecution) BatchError {
 	executionCtx.Remove(FileItemWriterHandleKey)
 	e := w.writer.Close(handle)
 	if e != nil {
-		return NewBatchError(ErrCodeGeneral, "close file writer[%v] err:%v", fileName, e)
+		return NewBatchError(ErrCodeGeneral, "close file writer:%v err", fileName, e)
 	}
 	//generate file checksum
 	if w.fd.Checksum != "" {
@@ -68,7 +68,7 @@ func (w *fileWriter) Close(execution *StepExecution) BatchError {
 		if checksumer != nil {
 			err := checksumer.Checksum(fd)
 			if err != nil {
-				return NewBatchError(ErrCodeGeneral, "generate file checksum[%v] err:%v", fd, err)
+				return NewBatchError(ErrCodeGeneral, "generate file checksum:%v err", fd, err)
 			}
 		}
 	}
@@ -77,7 +77,7 @@ func (w *fileWriter) Close(execution *StepExecution) BatchError {
 
 func (w *fileWriter) Aggregate(execution *StepExecution, subExecutions []*StepExecution) BatchError {
 	if w.merger != nil {
-		subFiles := make([]file.FileDescriptor, 0)
+		subFiles := make([]file.FileObjectModel, 0)
 		for _, subExecution := range subExecutions {
 			fileName := subExecution.StepExecutionContext.Get(FileItemWriterFileNameKey)
 			fd := w.fd
@@ -88,12 +88,12 @@ func (w *fileWriter) Aggregate(execution *StepExecution, subExecutions []*StepEx
 		fp := &FilePath{fd.FileName}
 		fileName, err := fp.Format(execution)
 		if err != nil {
-			return NewBatchError(ErrCodeGeneral, "get real file path:%v err:%v", fd.FileName, err)
+			return NewBatchError(ErrCodeGeneral, "get real file path:%v err", fd.FileName, err)
 		}
 		fd.FileName = fileName
 		err = w.merger.Merge(subFiles, fd)
 		if err != nil {
-			return NewBatchError(ErrCodeGeneral, "aggregate file[%v] err:%v", fd.FileName, err)
+			return NewBatchError(ErrCodeGeneral, "aggregate file:%v err", fd.FileName, err)
 		}
 		//generate file checksum
 		if fd.Checksum != "" {
@@ -101,7 +101,7 @@ func (w *fileWriter) Aggregate(execution *StepExecution, subExecutions []*StepEx
 			if checksumer != nil {
 				err = checksumer.Checksum(fd)
 				if err != nil {
-					return NewBatchError(ErrCodeGeneral, "generate file checksum[%v] err:%v", fd, err)
+					return NewBatchError(ErrCodeGeneral, "generate file checksum:%v err", fd, err)
 				}
 			}
 		}

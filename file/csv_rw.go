@@ -9,13 +9,13 @@ import (
 )
 
 type csvReader struct {
-	fd       FileDescriptor
+	fd       FileObjectModel
 	reader   io.ReadCloser
 	cReader  *csv.Reader
 	metadata *xsvMetadata
 }
 type csvWriter struct {
-	fd       FileDescriptor
+	fd       FileObjectModel
 	writer   io.WriteCloser
 	cWriter  *csv.Writer
 	metadata *xsvMetadata
@@ -23,7 +23,7 @@ type csvWriter struct {
 
 type csvFileItemReader struct {
 }
-func (r *csvFileItemReader) Open(fd FileDescriptor) (interface{}, error) {
+func (r *csvFileItemReader) Open(fd FileObjectModel) (interface{}, error) {
 	if fd.Type != CSV {
 		return nil, errors.New("file type doesn't match csvFileItemReader")
 	}
@@ -40,19 +40,25 @@ func (r *csvFileItemReader) Open(fd FileDescriptor) (interface{}, error) {
 		tp = tp.Elem()
 	}
 	if tp.Kind() != reflect.Struct {
-		reader.Close()
+		if er := reader.Close(); er != nil {
+			//
+		}
 		return nil, errors.New("the underlying type of ItemPrototype is not struct for " + fd.FileName)
 	}
 	metadata, err := getMetadata(tp)
 	if err != nil {
-		reader.Close()
+		if er := reader.Close(); er != nil {
+			//
+		}
 		return nil, err
 	}
 	handle := &csvReader{fd, reader, cReader, metadata}
 	if fd.Header {
 		record, err := cReader.Read()
 		if err != nil {
-			reader.Close()
+			if er := reader.Close(); er != nil {
+				//
+			}
 			return nil, err
 		}
 		metadata.fileHeaders, metadata.fileHeaderMap = record, slice2Map(record)
@@ -74,7 +80,7 @@ func (r *csvFileItemReader) ReadItem(handle interface{}) (interface{}, error) {
 	metadata := fdr.metadata
 	var val reflect.Value
 	if fdr.fd.Header {
-		val, err = xsvUnmarshalByHeader(record, metadata.fileHeaderMap, metadata.structType)
+		val, err = xsvUnmarshal(record, metadata.fileHeaderMap, metadata.structType)
 	} else {
 		val, err = xsvUnmarshalByOrder(record, metadata.structType)
 	}
@@ -93,13 +99,13 @@ func (r *csvFileItemReader) SkipTo(handle interface{}, pos int64) error {
 	}
 	return nil
 }
-func (r *csvFileItemReader) Count(fd FileDescriptor) (int64, error) {
+func (r *csvFileItemReader) Count(fd FileObjectModel) (int64, error) {
 	return Count(fd)
 }
 
 type csvFileItemWriter struct {
 }
-func (r *csvFileItemWriter) Open(fd FileDescriptor) (interface{}, error) {
+func (r *csvFileItemWriter) Open(fd FileObjectModel) (interface{}, error) {
 	if fd.Type != CSV {
 		return nil, errors.New("file type doesn't match csvFileItemWriter")
 	}
@@ -124,7 +130,9 @@ func (r *csvFileItemWriter) Open(fd FileDescriptor) (interface{}, error) {
 	if fd.Header {
 		err = cWriter.Write(metadata.structFields)
 		if err != nil {
-			//close writer
+			if er := writer.Close(); er != nil {
+				//
+			}
 			return nil, err
 		}
 	}
@@ -132,16 +140,22 @@ func (r *csvFileItemWriter) Open(fd FileDescriptor) (interface{}, error) {
 }
 func (r *csvFileItemWriter) Close(handle interface{}) error {
 	fdw := handle.(*csvWriter)
-	return fdw.writer.Close()
+	defer func() {
+		if err := fdw.writer.Close(); err != nil {
+			//
+		}
+	}()
+	fdw.cWriter.Flush()
+	return fdw.cWriter.Error()
 }
 func (r *csvFileItemWriter) WriteItem(handle interface{}, item interface{}) error {
 	fdw := handle.(*csvWriter)
 	var fields []string
 	var err error
 	if fdw.fd.Header {
-		fields, err = xsvMarshalByHeader(item, fdw.metadata)
+		fields, err = xsvMarshal(item, fdw.metadata)
 	} else {
-		fields, err = xsvMarshalByOrder(item, fdw.metadata)
+		fields, err = xsvMarshal(item, fdw.metadata)
 	}
 	if err != nil {
 		return err
@@ -152,11 +166,11 @@ func (r *csvFileItemWriter) WriteItem(handle interface{}, item interface{}) erro
 
 type csvFileMergeSplitter struct {
 }
-func (r *csvFileMergeSplitter) Merge(src []FileDescriptor, dest FileDescriptor) error {
+func (r *csvFileMergeSplitter) Merge(src []FileObjectModel, dest FileObjectModel) error {
 	err := Merge(src, dest)
 	return err
 }
-func (r *csvFileMergeSplitter) Split(src FileDescriptor, dest []FileDescriptor, strategy FileSplitStrategy) error {
+func (r *csvFileMergeSplitter) Split(src FileObjectModel, dest []FileObjectModel, strategy FileSplitStrategy) error {
 	err := Split(src, dest, strategy)
 	return err
 }
