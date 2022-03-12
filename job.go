@@ -36,7 +36,7 @@ func (job *simpleJob) Name() string {
 func (job *simpleJob) Start(ctx context.Context, execution *JobExecution) (err BatchError) {
 	defer func() {
 		if er := recover(); er != nil {
-			logger.Error(ctx, "panic in job executing, jobName:%v, jobExecutionId:%v, err:%v, stack:%v", job.name, execution.JobExecutionId, er, debug.Stack())
+			logger.Error(ctx, "panic in job executing, jobName:%v, jobExecutionId:%v, err:%v, stack:%v", job.name, execution.JobExecutionId, er, string(debug.Stack()))
 			execution.JobStatus = status.FAILED
 			execution.FailError = NewBatchError(ErrCodeGeneral, "panic in job execution", er)
 			execution.EndTime = time.Now()

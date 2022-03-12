@@ -105,7 +105,7 @@ func (step *simpleStep) Exec(ctx context.Context, execution *StepExecution) (err
 
 func execEnd(ctx context.Context, execution *StepExecution, err BatchError, recoverErr interface{}) BatchError {
 	if recoverErr != nil {
-		logger.Error(ctx, "panic in step executing, jobExecutionId:%v, stepName:%v, err:%v, stack:%v", execution.JobExecution.JobExecutionId, execution.StepName, recoverErr, debug.Stack())
+		logger.Error(ctx, "panic in step executing, jobExecutionId:%v, stepName:%v, err:%v, stack:%v", execution.JobExecution.JobExecutionId, execution.StepName, recoverErr, string(debug.Stack()))
 		execution.StepStatus = status.FAILED
 		execution.FailError = NewBatchError(ErrCodeGeneral, "panic in step execution", recoverErr)
 		execution.EndTime = time.Now()

@@ -9,15 +9,6 @@ import (
 	"time"
 )
 
-var db *sql.DB
-
-func SetDB(sqlDb *sql.DB) {
-	if sqlDb == nil {
-		panic("sqlDb must not be nil")
-	}
-	db = sqlDb
-}
-
 type batchJobInstance struct {
 	JobInstanceId int64
 	JobName       string

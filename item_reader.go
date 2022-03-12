@@ -14,7 +14,9 @@ const (
 )
 
 type ItemReader interface {
+	//ReadKeys read all keys of some kind of data
 	ReadKeys() ([]interface{}, error)
+	//ReadItem read value by one key from ReadKeys result
 	ReadItem(key interface{}) (interface{}, error)
 }
 

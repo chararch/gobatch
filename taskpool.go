@@ -6,14 +6,6 @@ import (
 	"github.com/panjf2000/ants/v2"
 )
 
-const (
-	DefaultJobPoolSize      = 10
-	DefaultStepTaskPoolSize = 1000
-)
-
-var jobPool = newTaskPool(DefaultJobPoolSize)
-var stepPool = newTaskPool(DefaultStepTaskPoolSize)
-
 type taskPool struct {
 	pool *ants.Pool
 }
@@ -80,12 +72,4 @@ func (pool *taskPool) Release() {
 
 func (pool *taskPool) SetMaxSize(size int) {
 	pool.pool.Tune(size)
-}
-
-func SetMaxRunningJobs(size int) {
-	jobPool.SetMaxSize(size)
-}
-
-func SetMaxRunningSteps(size int) {
-	stepPool.SetMaxSize(size)
 }
