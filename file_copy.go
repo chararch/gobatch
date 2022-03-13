@@ -1,8 +1,8 @@
 package gobatch
 
 import (
-	"chararch/gobatch/file"
 	"context"
+	"github.com/chararch/gobatch/file"
 	"io"
 )
 

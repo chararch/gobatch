@@ -542,7 +542,7 @@ func xsvMarshal(item interface{}, meta *xsvMetadata) ([]string, error) {
 	return fields, nil
 }
 
-/*func xsvMarshalByOrder(item interface{}, meta *xsvMetadata) ([]string, error) {
+func xsvMarshalByOrder(item interface{}, meta *xsvMetadata) ([]string, error) {
 	refItem := reflect.ValueOf(item)
 	for refItem.Type().Kind() == reflect.Ptr && !refItem.IsZero() {
 		refItem = refItem.Elem()
@@ -561,7 +561,7 @@ func xsvMarshal(item interface{}, meta *xsvMetadata) ([]string, error) {
 		}
 	}
 	return fields, nil
-}*/
+}
 
 func serializeStruct(item reflect.Value, tp reflect.Type) (map[int]string, map[string]string, error) {
 	fieldValueMap := make(map[int]string)
@@ -648,7 +648,7 @@ func serializeStruct(item reflect.Value, tp reflect.Type) (map[int]string, map[s
 	return fieldValueMap, fieldValueByHeader, nil
 }
 
-/*func xsvMarshalByHeader(item interface{}, meta *xsvMetadata) ([]string, error) {
+func xsvMarshalByHeader(item interface{}, meta *xsvMetadata) ([]string, error) {
 	refItem := reflect.ValueOf(item)
 	for refItem.Type().Kind() == reflect.Ptr && !refItem.IsZero() {
 		refItem = refItem.Elem()
@@ -722,7 +722,7 @@ func serializeStructByHeader(item reflect.Value, tp reflect.Type) (map[string]st
 		}
 	}
 	return fieldValueMap, nil
-}*/
+}
 
 func formatField(tf reflect.StructField, vf reflect.Value) (string, error) {
 	val, err := formatVal(vf, tf.Type, tf.Tag)

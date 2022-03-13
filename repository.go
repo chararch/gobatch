@@ -2,10 +2,10 @@ package gobatch
 
 import (
 	"bytes"
-	"chararch/gobatch/status"
-	"chararch/gobatch/util"
 	"context"
 	"database/sql"
+	"github.com/chararch/gobatch/status"
+	"github.com/chararch/gobatch/util"
 	"time"
 )
 

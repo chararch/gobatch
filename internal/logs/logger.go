@@ -40,7 +40,7 @@ func (ll LogLevel) String() string {
 }
 
 type defaultLogger struct {
-	writer io.StringWriter
+	writer   io.StringWriter
 	logLevel LogLevel
 }
 

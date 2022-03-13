@@ -3,7 +3,7 @@ GoBatch is a batch processing framework in Go like Spring Batch in Java. If you 
 
 ## Architecture
 
-In GoBatch, job is divided into multiple steps, the steps are executed successively.
+In GoBatch, Job is divided into multiple Steps, the steps are executed successively.
 
 ![](https://raw.githubusercontent.com/chararch/images/main/gobatch.png)
 
@@ -31,7 +31,7 @@ go get -u github.com/chararch/gobatch
 
 ## Use Step
 
-1. Create or choose an existing database, eg: gobatch
+1. Create or choose a database, eg: gobatch
 1. Create tables from [sql/schema_mysql.sql](https://github.com/chararch/gobatch/blob/master/sql/schema_mysql.sql) into previous database
 1. Write gobatch code and run it
 
@@ -103,10 +103,11 @@ func main()  {
 	gobatch.Start(context.Background(), job.Name(), "")
 }
 ```
+You can look at the code in [test/example.go](https://github.com/chararch/gobatch/blob/master/test/example.go)
 
 ### Write a Simple step
 
-You can use several methods to write a simple step logic:
+There are several methods to write a simple step logic:
 ```go
 // 1. write a function with one of the following signature
 func(execution *StepExecution) BatchError
@@ -130,7 +131,7 @@ step2 := gobatch.NewStep("step2", myHandler).Build()
 
 ### Write a Chunk step
 
-You must implement the three interfaces to build a chunk step:
+To build a chunk step, you should implement the following interfaces, only the Reader is required:
 ```go
 type Reader interface {
     //Read each call of Read() will return a data item, if there is no more data, a nil item will be returned.
@@ -154,110 +155,14 @@ type ItemReader interface {
     ReadItem(key interface{}) (interface{}, error)
 }
 ```
-For convenience, you can implement the following interface on Reader or Writer to do some initialization or cleanup:
+For convenience, you can implement the following interface along with Reader or Writer to do some initialization or cleanup:
 ```go
 type OpenCloser interface {
 	Open(execution *StepExecution) BatchError
 	Close(execution *StepExecution) BatchError
 }
 ```
-
-A chunk step example:
-```go
-type InterestHandler struct {
-	db *gorm.DB
-}
-
-func (h *InterestHandler) Open(execution *gobatch.StepExecution) gobatch.BatchError {
-	if h.db == nil {
-		//initialize db
-	}
-	return nil
-}
-
-func (h *InterestHandler) Close(execution *gobatch.StepExecution) gobatch.BatchError {
-	return nil
-}
-
-func (h *InterestHandler) ReadKeys() ([]interface{}, error) {
-	var ids []int64
-	h.db.Table("t_repay_plan").Select("id").Find(&ids)
-	var result []interface{}
-	for _, id := range ids {
-		result = append(result, id)
-	}
-	return result, nil
-}
-
-func (h *InterestHandler) ReadItem(key interface{}) (interface{}, error) {
-	id := int64(0)
-	switch r := key.(type) {
-	case int64:
-		id = r
-	case float64:
-		id = int64(r)
-	default:
-		return nil, fmt.Errorf("key type error, type:%T, value:%v", key, key)
-	}
-	plan := &RepayPlan{}
-	result := h.db.Table("t_repay_plan").Find(plan, id)
-	if result.Error != nil {
-		return nil, result.Error
-	}
-	return plan, nil
-}
-
-func (h *InterestHandler) Process(item interface{}, chunkCtx *gobatch.ChunkContext) (interface{}, gobatch.BatchError) {
-	plan := item.(*RepayPlan)
-	interest := plan.PlanInterest / 30
-	plan.Interest += interest
-	date := chunkCtx.StepExecution.JobExecution.JobParams["date"]
-	if date != nil {
-		dt, err := time.Parse("20060102", date.(string))
-		if err != nil {
-			return nil, gobatch.NewBatchError(gobatch.ErrCodeGeneral, "can not parse 'date' from job params:%v", date, err)
-		}
-		plan.AccountingDate = dt
-	} else {
-		plan.AccountingDate = time.Now()
-	}
-	return plan, nil
-}
-
-func (h *InterestHandler) Write(items []interface{}, chunkCtx *gobatch.ChunkContext) gobatch.BatchError {
-	for _, item := range items {
-		plan := item.(*RepayPlan)
-		e := db.Table("t_repay_plan").Where("id = ?", plan.Id).Updates(map[string]interface{}{
-			"interest":        plan.Interest,
-			"accounting_date": plan.AccountingDate,
-		}).Error
-		if e != nil {
-			return gobatch.NewBatchError(gobatch.ErrCodeDbFail, "query t_repay_plan failed", e)
-		}
-		accrualInterest := &AccrualInterest{
-			LoanNo:           plan.LoanNo,
-			Term:             plan.Term,
-			AccountingDate:   plan.AccountingDate,
-			PrincipalBalance: plan.PrincipalBalance,
-			DailyInterest:    plan.PlanInterest / 30,
-			DailyPenalty:     0,
-			CreateTime:       time.Now(),
-			UpdateTime:       time.Now(),
-		}
-		e = db.Table("t_accrual_interest").Create(accrualInterest).Error
-		if e != nil {
-			return gobatch.NewBatchError(gobatch.ErrCodeDbFail, "insert t_accrual_interest failed", e)
-		}
-	}
-	return nil
-}
-
-func main()  {
-	//...
-	step := gobatch.NewStep("accrual_interest").Handler(&InterestHandler{db}).Build()
-	//...
-}
-```
+You could see the chunk step example under [test/example2](https://github.com/chararch/gobatch/blob/master/test/example2)
 
 ### Write a Partition step
 
@@ -277,7 +182,7 @@ type Aggregator interface {
 ```
 If you already have a chunk step with an ItemReader, you can easily build a partition step nothing more than specifying partitions count:
 ```go
-    step := gobatch.NewStep("accrual_interest").Handler(&InterestHandler{db}).Partitions(10).Build()
+    step := gobatch.NewStep("partition_step").Handler(&ChunkHandler{db}).Partitions(10).Build()
 ```
 
 ### Read & Write File
@@ -341,7 +246,7 @@ type Trade struct {
     AccountNo string    `order:"1" header:"account_no"`
     Type      string    `order:"2" header:"type"`
     Amount    float64   `order:"3" header:"amount"`
-    TradeTime time.Time `order:"5" header:"trade_time" format:"20060102_150405"`
+    TradeTime time.Time `order:"5" header:"trade_time" format:"2006-01-02_15:04:05"`
     Status    string    `order:"4" header:"trade_no"`
 }
 
@@ -433,13 +338,13 @@ func buildAndRunJob() {
 ### Global Settings
 
 #### SetDB
-GoBatch need a database to store job and step execution context, so you must specify a *sql.DB instance before running job.
+GoBatch need a database to store job and step execution contexts, so you must pass a *sql.DB instance to GoBatch before running job.
 ```go
     gobatch.SetDB(sqlDb)
 ```
 
 #### SetTransactionManager
-If you try to build a chunk step, you must specify a TransactionManager instance, the interface is:
+If you are trying to build a chunk step, you must register a TransactionManager instance to GoBatch, the interface is:
 ```go
 type TransactionManager interface {
 	BeginTx() (tx interface{}, err BatchError)
@@ -447,10 +352,10 @@ type TransactionManager interface {
 	Rollback(tx interface{}) BatchError
 }
 ```
-GoBatch has a DefaultTxManager, if you set DB and have no TransactionManager set yet, GoBatch also create a DefaultTxManager instance for you.
+GoBatch has a DefaultTxManager, if you have set DB and have no TransactionManager set yet, GoBatch also create a DefaultTxManager instance for you.
 
 #### SetMaxRunningJobs & SetMaxRunningSteps
-GoBatch has internal TaskPools to run jobs and steps, the max running jobs and steps are limited by pool size. The default value of the max running jobs and steps are 10, 1000. You can change the default settings by:
+GoBatch has internal TaskPools to run jobs and steps, the max running jobs and steps are limited by the pool size. The default value of the max running jobs and steps are 10, 1000. You can change the default settings by:
 ```go
     gobatch.SetMaxRunningJobs(100)
     gobatch.SetMaxRunningSteps(5000)

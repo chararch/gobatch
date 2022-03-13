@@ -1,9 +1,9 @@
 package gobatch
 
 import (
-	"chararch/gobatch/file"
 	"context"
 	"fmt"
+	"github.com/chararch/gobatch/file"
 )
 
 const (

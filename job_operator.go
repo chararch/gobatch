@@ -1,10 +1,10 @@
 package gobatch
 
 import (
-	"chararch/gobatch/status"
-	"chararch/gobatch/util"
 	"context"
 	"fmt"
+	"github.com/chararch/gobatch/status"
+	"github.com/chararch/gobatch/util"
 	"github.com/pkg/errors"
 	"time"
 )

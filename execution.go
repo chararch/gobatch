@@ -1,7 +1,7 @@
 package gobatch
 
 import (
-	"chararch/gobatch/status"
+	"github.com/chararch/gobatch/status"
 	"time"
 )
 

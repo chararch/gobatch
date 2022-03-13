@@ -1,8 +1,8 @@
 package gobatch
 
 import (
-	"chararch/gobatch/status"
 	"context"
+	"github.com/chararch/gobatch/status"
 	"reflect"
 	"runtime/debug"
 	"time"

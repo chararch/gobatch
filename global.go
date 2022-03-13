@@ -1,8 +1,8 @@
 package gobatch
 
 import (
-	"chararch/gobatch/internal/logs"
 	"database/sql"
+	"github.com/chararch/gobatch/internal/logs"
 	"os"
 )
 

@@ -1,8 +1,8 @@
 package file
 
 import (
-	"chararch/gobatch/util"
 	"github.com/bmizerany/assert"
+	"github.com/chararch/gobatch/util"
 	"log"
 	"reflect"
 	"testing"

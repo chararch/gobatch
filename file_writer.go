@@ -1,8 +1,8 @@
 package gobatch
 
 import (
-	"chararch/gobatch/file"
 	"fmt"
+	"github.com/chararch/gobatch/file"
 	"strings"
 )
 

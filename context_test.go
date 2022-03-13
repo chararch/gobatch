@@ -1,9 +1,9 @@
 package gobatch
 
 import (
-	"chararch/gobatch/util"
 	"fmt"
 	"github.com/bmizerany/assert"
+	"github.com/chararch/gobatch/util"
 	"testing"
 )
 

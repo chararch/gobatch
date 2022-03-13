@@ -1,10 +1,10 @@
 package gobatch
 
 import (
-	"chararch/gobatch/status"
-	"chararch/gobatch/util"
 	"context"
 	"fmt"
+	"github.com/chararch/gobatch/status"
+	"github.com/chararch/gobatch/util"
 	"reflect"
 	"runtime/debug"
 	"time"
@@ -462,7 +462,7 @@ func (step *partitionStep) Exec(ctx context.Context, execution *StepExecution) (
 	}
 	subExecutions, err := step.split(ctx, execution, step.partitions)
 	if err != nil {
-		logger.Error(ctx, "step split error, jobExecutionId:%v, stepName:%v, err:%v", execution.JobExecution.JobExecutionId, execution.StepName, err)
+		logger.Error(ctx, "step split error, jobExecutionId:%v, stepName:%v", execution.JobExecution.JobExecutionId, execution.StepName, err)
 		for _, listener := range step.partitionListeners {
 			listener.OnError(execution, err)
 		}

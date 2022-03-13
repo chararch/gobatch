@@ -14,6 +14,12 @@ type DefaultTxManager struct {
 	db *sql.DB
 }
 
+func NewTransactionManager(db *sql.DB) TransactionManager {
+	return &DefaultTxManager{
+		db: db,
+	}
+}
+
 func (tm *DefaultTxManager) BeginTx() (interface{}, BatchError) {
 	tx, err := tm.db.Begin()
 	if err != nil {
