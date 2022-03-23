@@ -18,6 +18,7 @@ func mytask() {
 //reader
 type myReader struct {
 }
+
 func (r *myReader) Read(chunkCtx *gobatch.ChunkContext) (interface{}, gobatch.BatchError) {
 	curr, _ := chunkCtx.StepExecution.StepContext.GetInt("read.num", 0)
 	if curr < 100 {
@@ -30,6 +31,7 @@ func (r *myReader) Read(chunkCtx *gobatch.ChunkContext) (interface{}, gobatch.Ba
 //processor
 type myProcessor struct {
 }
+
 func (r *myProcessor) Process(item interface{}, chunkCtx *gobatch.ChunkContext) (interface{}, gobatch.BatchError) {
 	return fmt.Sprintf("processed-%v", item), nil
 }
@@ -37,12 +39,13 @@ func (r *myProcessor) Process(item interface{}, chunkCtx *gobatch.ChunkContext) 
 //writer
 type myWriter struct {
 }
+
 func (r *myWriter) Write(items []interface{}, chunkCtx *gobatch.ChunkContext) gobatch.BatchError {
 	fmt.Printf("write: %v\n", items)
 	return nil
 }
 
-func main()  {
+func main() {
 	//set db for gobatch to store job&step execution context
 	var db *sql.DB
 	var err error

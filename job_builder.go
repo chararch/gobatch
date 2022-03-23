@@ -11,6 +11,7 @@ type jobBuilder struct {
 	partitionListeners []PartitionListener
 }
 
+//NewJob new instance of job builder
 func NewJob(name string, steps ...Step) *jobBuilder {
 	if name == "" {
 		panic("job name must not be empty")

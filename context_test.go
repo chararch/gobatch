@@ -17,7 +17,7 @@ func TestBatchContext_Get(t *testing.T) {
 }
 
 type Key struct {
-	Id int64
+	Id   int64
 	Code string
 }
 
@@ -26,15 +26,15 @@ func TestBatchContext_MarshalJSON(t *testing.T) {
 	batchCtx.Put("count", 100)
 	batchCtx.Put("current", 5)
 	batchCtx.Put("keys", []Key{{
-			Id:   1,
-			Code: "1",
-		}, {
-			Id:   2,
-			Code: "2",
-		}, {
-			Id:   3,
-			Code: "3",
-		},
+		Id:   1,
+		Code: "1",
+	}, {
+		Id:   2,
+		Code: "2",
+	}, {
+		Id:   3,
+		Code: "3",
+	},
 	})
 	json, err := util.JsonString(batchCtx)
 	assert.Equal(t, nil, err)

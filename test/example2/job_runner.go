@@ -37,10 +37,10 @@ func buildAndRunJob() {
 	gobatch.SetDB(sqlDb)
 	gobatch.SetTransactionManager(gobatch.NewTransactionManager(sqlDb))
 
-	step1 := gobatch.NewStep("import_trade").ReadFile(tradeFile).Writer(&TradeImporter{sqlDb}).Partitions(10).Build()
-	step2 := gobatch.NewStep("gen_repay_plan").Reader(&TradeReader{sqlDb}).Handler(&RepayPlanHandler{sqlDb}).Partitions(10).Build()
-	step3 := gobatch.NewStep("stats").Handler(&StatsHandler{sqlDb}).Build()
-	step4 := gobatch.NewStep("export_trade").Reader(&TradeReader{sqlDb}).WriteFile(tradeFileExport).Partitions(10).Build()
+	step1 := gobatch.NewStep("import_trade").ReadFile(tradeFile).Writer(&tradeImporter{sqlDb}).Partitions(10).Build()
+	step2 := gobatch.NewStep("gen_repay_plan").Reader(&tradeReader{sqlDb}).Handler(&repayPlanHandler{sqlDb}).Partitions(10).Build()
+	step3 := gobatch.NewStep("stats").Handler(&statsHandler{sqlDb}).Build()
+	step4 := gobatch.NewStep("export_trade").Reader(&tradeReader{sqlDb}).WriteFile(tradeFileExport).Partitions(10).Build()
 	step5 := gobatch.NewStep("upload_file_to_ftp").CopyFile(copyFileToFtp, copyChecksumFileToFtp).Build()
 	job := gobatch.NewJob("accounting_job").Step(step1, step2, step3, step4, step5).Build()
 

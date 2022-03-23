@@ -10,16 +10,18 @@ import (
 	"time"
 )
 
+//FilePath an abstract file path
 type FilePath struct {
 	NamePattern string
 }
 
 var paramRegexp = regexp.MustCompile("\\{[^\\}]+\\}")
 
+//Format generate a real file path by formatting FilePath according to *StepExecution instance
 func (f *FilePath) Format(execution *StepExecution) (string, error) {
 	var err error
 	factPath := paramRegexp.ReplaceAllStringFunc(f.NamePattern, func(s string) string {
-		s = s[1:len(s)-1]
+		s = s[1 : len(s)-1]
 		category, param, format := "", s, ""
 		idx := strings.Index(s, ":")
 		if idx > 0 {
@@ -66,6 +68,7 @@ func (f *FilePath) Format(execution *StepExecution) (string, error) {
 }
 
 var dateFmtRegexp = regexp.MustCompile("yyyy|MM|dd|HH|mm|SS")
+
 func formatParam(val interface{}, format string) (string, error) {
 	if val == nil {
 		return "", nil
@@ -117,7 +120,7 @@ func parseDate(val interface{}) (time.Time, error) {
 		if len(strVal) == 8 {
 			return time.ParseInLocation("20060102", strVal, time.Local)
 		} else if len(strVal) == 10 {
-			dt, err :=  time.ParseInLocation("2006-01-02", strVal, time.Local)
+			dt, err := time.ParseInLocation("2006-01-02", strVal, time.Local)
 			return dt, err
 		} else if len(strVal) == 19 {
 			return time.ParseInLocation("2006-01-02 15:04:05", strVal, time.Local)

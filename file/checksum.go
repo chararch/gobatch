@@ -11,6 +11,7 @@ import (
 	"strings"
 )
 
+//OKFlagChecksumer generate and verify an empty file with '.ok' suffix indicating the data file completed
 type OKFlagChecksumer struct {
 }
 
@@ -55,8 +56,10 @@ func (ch *OKFlagChecksumer) Checksum(fd FileObjectModel) error {
 	return w.Close()
 }
 
+//MD5Checksumer generate and verify a check file containing the md5 digest of the data file
 type MD5Checksumer struct {
 }
+
 func (ch *MD5Checksumer) Verify(fd FileObjectModel) (bool, error) {
 	return verify(fd, MD5, md5.New())
 }
@@ -64,8 +67,10 @@ func (ch *MD5Checksumer) Checksum(fd FileObjectModel) error {
 	return checksum(fd, MD5, md5.New())
 }
 
+//SHA1Checksumer generate and verify a check file containing the sha-1 digest of the data file
 type SHA1Checksumer struct {
 }
+
 func (ch *SHA1Checksumer) Verify(fd FileObjectModel) (bool, error) {
 	return verify(fd, SHA1, sha1.New())
 }
@@ -73,8 +78,10 @@ func (ch *SHA1Checksumer) Checksum(fd FileObjectModel) error {
 	return checksum(fd, SHA1, sha1.New())
 }
 
+//SHA256Checksumer generate and verify a check file containing the sha-256 digest of the data file
 type SHA256Checksumer struct {
 }
+
 func (ch *SHA256Checksumer) Verify(fd FileObjectModel) (bool, error) {
 	return verify(fd, SHA256, sha256.New())
 }
@@ -82,8 +89,10 @@ func (ch *SHA256Checksumer) Checksum(fd FileObjectModel) error {
 	return checksum(fd, SHA256, sha256.New())
 }
 
+//SHA512Checksumer generate and verify a check file containing the sha-512 digest of the data file
 type SHA512Checksumer struct {
 }
+
 func (ch *SHA512Checksumer) Verify(fd FileObjectModel) (bool, error) {
 	return verify(fd, SHA512, sha512.New())
 }

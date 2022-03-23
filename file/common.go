@@ -10,13 +10,18 @@ import (
 )
 
 const (
+	//LocalFileStorage name of local file storage
 	LocalFileStorage = "File"
-	FTPFileStorage   = "FTP"
+	//FTPFileStorage name of ftp file storage
+	FTPFileStorage = "FTP"
 )
 
 const (
-	TSV  = "tsv"
-	CSV  = "csv"
+	//TSV a file type that have tab-seperated values as its content
+	TSV = "tsv"
+	//CSV a file type that have comma-seperated values as its content
+	CSV = "csv"
+	//JSON a file type that have json string as its content
 	JSON = "json"
 )
 
@@ -28,6 +33,7 @@ const (
 	SHA512 = "SHA512"
 )
 
+//FileObjectModel represents mapping a file to/from a struct
 type FileObjectModel struct {
 	FileStore      FileStorage
 	FileName       string
@@ -39,6 +45,7 @@ type FileObjectModel struct {
 	ItemPrototype  interface{}
 }
 
+//FileMove represents source and destination of a file movement
 type FileMove struct {
 	FromFileName  string
 	FromFileStore FileStorage
@@ -50,6 +57,7 @@ func (fd FileObjectModel) String() string {
 	return fmt.Sprintf("%s://%s", fd.FileStore.Name(), fd.FileName)
 }
 
+//ItemType returns the reflect.Type of the item within a FileObjectModel
 func (fd FileObjectModel) ItemType() (reflect.Type, error) {
 	prot := fd.ItemPrototype
 	tp := reflect.TypeOf(prot)
@@ -62,57 +70,85 @@ func (fd FileObjectModel) ItemType() (reflect.Type, error) {
 	return tp, nil
 }
 
+//FileStorage represents a file store media, from which we can read or write files
 type FileStorage interface {
+	//Name return name of the file store
 	Name() string
+	//Exists check if a file with the specified fileName exists
 	Exists(fileName string) (ok bool, err error)
+	//Open return a reader of the specified fileName, transform encoding if necessary
 	Open(fileName, encoding string) (reader io.ReadCloser, err error)
+	//Create return a writer of the specified fileName, transform encoding if necessary
 	Create(fileName, encoding string) (writer io.WriteCloser, err error)
 }
 
+//FileItemReader read object from file according a FileObjectModel
 type FileItemReader interface {
+	//Open open file of the FileObjectModel, returns a handle for later read
 	Open(fd FileObjectModel) (handle interface{}, err error)
+	//Close open the file handle
 	Close(handle interface{}) error
+	//ReadItem read an item from the file handle
 	ReadItem(handle interface{}) (interface{}, error)
+	//SkipTo skip to the pos'th record in the file
 	SkipTo(handle interface{}, pos int64) error
+	//Count return number of items contained by the file
 	Count(fd FileObjectModel) (int64, error)
 }
 
+//FileItemWriter write object to file according to a FileObjectModel
 type FileItemWriter interface {
+	//Open open file of the FileObjectModel, returns a handle for later write
 	Open(fd FileObjectModel) (handle interface{}, err error)
+	//Close open the file handle
 	Close(handle interface{}) error
+	//WriteItem write an item to the file
 	WriteItem(handle interface{}, data interface{}) error
 }
 
+//FileMerger merge multiple files into a simple one
 type FileMerger interface {
+	//Merge merge multiple files into a simple one
 	Merge(src []FileObjectModel, dest FileObjectModel) (err error)
 }
 
+//FileSplitter split a src file into multiple dest ones
 type FileSplitter interface {
+	//Split split a src file into multiple destinations, decide the destination of every record according to a FileSplitStrategy
 	Split(src FileObjectModel, dest []FileObjectModel, strategy FileSplitStrategy) (err error)
 }
 
+//FileSplitStrategy decide the destination of every record
 type FileSplitStrategy interface {
-	DecideDestNum(line string, dest []FileObjectModel) int
+	//DecideDestIndex decide the destination of every record, return the index of destination file in the dest array
+	DecideDestIndex(line string, dest []FileObjectModel) int
 }
 
+//MergeSplitter the combination of FileMerger and FileSplitter
 type MergeSplitter interface {
 	FileMerger
 	FileSplitter
 }
 
+//ChecksumVerifier verify a data file according to the corresponding check file
 type ChecksumVerifier interface {
+	//Verify verify a data file according to the corresponding check file
 	Verify(fd FileObjectModel) (bool, error)
 }
 
+//ChecksumFlusher write a check file for the corresponding data file
 type ChecksumFlusher interface {
+	//Checksum generate checksum and write a check file for the corresponding data file
 	Checksum(fd FileObjectModel) error
 }
 
+//Checksumer the combination of ChecksumVerifier and ChecksumFlusher
 type Checksumer interface {
 	ChecksumVerifier
 	ChecksumFlusher
 }
 
+//Count the default implementation to count number of items contained by the file
 func Count(fd FileObjectModel) (int64, error) {
 	fs := fd.FileStore
 	reader, err := fs.Open(fd.FileName, fd.Encoding)
@@ -146,6 +182,7 @@ func Count(fd FileObjectModel) (int64, error) {
 	}
 }
 
+//Merge the default implementation to merge multiple files into a simple one
 func Merge(src []FileObjectModel, dest FileObjectModel) error {
 	destFs := dest.FileStore
 	writer, err := destFs.Create(dest.FileName, dest.Encoding)
@@ -227,6 +264,7 @@ func copyFile(idx int, srcFd FileObjectModel, writer *bufio.Writer) error {
 	return nil
 }
 
+//Split the default implementation to split a file into multiple destinations
 func Split(srcFd FileObjectModel, destFds []FileObjectModel, strategy FileSplitStrategy) error {
 	//open src file reader
 	srcFs := srcFd.FileStore
@@ -288,16 +326,16 @@ func Split(srcFd FileObjectModel, destFds []FileObjectModel, strategy FileSplitS
 				if line[len(line)-1] != '\n' {
 					line = line + "\n"
 				}
-				destNum := strategy.DecideDestNum(line, destFds)
-				_, er := bufWriters[destNum].Write([]byte(line))
+				destIdx := strategy.DecideDestIndex(line, destFds)
+				_, er := bufWriters[destIdx].Write([]byte(line))
 				if er != nil {
 					return er
 				}
 			}
 			break
 		}
-		destNum := strategy.DecideDestNum(line, destFds)
-		_, er := bufWriters[destNum].Write([]byte(line))
+		destIdx := strategy.DecideDestIndex(line, destFds)
+		_, er := bufWriters[destIdx].Write([]byte(line))
 		if er != nil {
 			return er
 		}

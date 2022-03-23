@@ -6,11 +6,11 @@ import (
 	"github.com/chararch/gobatch"
 )
 
-type StatsHandler struct {
+type statsHandler struct {
 	db *sql.DB
 }
 
-func (ss *StatsHandler) Handle(execution *gobatch.StepExecution) gobatch.BatchError {
+func (ss *statsHandler) Handle(execution *gobatch.StepExecution) gobatch.BatchError {
 	rows, err := ss.db.Query("select sum(principal) as total_principal, sum(interest) as total_interest from t_repay_plan")
 	if err != nil {
 		panic(err)

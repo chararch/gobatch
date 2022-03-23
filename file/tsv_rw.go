@@ -177,6 +177,7 @@ func (r *tsvFileItemWriter) WriteItem(handle interface{}, item interface{}) erro
 
 type tsvFileMergeSplitter struct {
 }
+
 func (r *tsvFileMergeSplitter) Merge(src []FileObjectModel, dest FileObjectModel) error {
 	err := Merge(src, dest)
 	return err

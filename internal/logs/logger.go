@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-
+// Logger logger interface
 type Logger interface {
 	Debug(ctx context.Context, msg string, args ...interface{})
 	Info(ctx context.Context, msg string, args ...interface{})
@@ -17,13 +17,18 @@ type Logger interface {
 	Error(ctx context.Context, msg string, args ...interface{})
 }
 
+// LogLevel log level
 type LogLevel int
 
 const (
+	//Debug enable debug or above log output
 	Debug LogLevel = 0
-	Info           = 1
-	Warn           = 2
-	Error          = 3
+	//Info enable info or above log output
+	Info LogLevel = 1
+	//Warn enable warn or above log output
+	Warn LogLevel = 2
+	//Error enable error or above log output
+	Error LogLevel = 3
 )
 
 func (ll LogLevel) String() string {
@@ -44,6 +49,7 @@ type defaultLogger struct {
 	logLevel LogLevel
 }
 
+//NewLogger init Logger instance
 func NewLogger(writer io.StringWriter, logLevel LogLevel) *defaultLogger {
 	return &defaultLogger{writer: writer, logLevel: logLevel}
 }
@@ -73,6 +79,7 @@ func (l *defaultLogger) Error(ctx context.Context, msg string, args ...interface
 }
 
 var seperatorReg = regexp.MustCompile("[/\\\\]")
+
 func fileLine() string {
 	_, file, line, ok := runtime.Caller(3)
 	if ok {

@@ -101,15 +101,15 @@ func TestMarshalByOrder(t *testing.T) {
 		Status: &s,
 		Valid:  true,
 		CDate:  tm,
-		S1:     Innner1{
+		S1: Innner1{
 			I1: 10,
 			F2: &f,
 		},
-		S2:     &Innner2{
+		S2: &Innner2{
 			F1: 1.58,
 			T2: &tm,
 		},
-		S3:     nil,
+		S3: nil,
 	}
 	meta, _ := getMetadata(reflect.TypeOf(outer).Elem())
 	fields, err := xsvMarshalByOrder(outer, meta)
@@ -145,15 +145,15 @@ func TestMarshalByHeader(t *testing.T) {
 		Status: &s,
 		Valid:  true,
 		CDate:  tm,
-		S1:     Innner1{
+		S1: Innner1{
 			I1: 10,
 			F2: &f,
 		},
-		S2:     &Innner2{
+		S2: &Innner2{
 			F1: 1.58,
 			T2: &tm,
 		},
-		S3:     nil,
+		S3: nil,
 	}
 	meta, _ := getMetadata(reflect.TypeOf(outer).Elem())
 	fields, err := xsvMarshalByHeader(outer, meta)

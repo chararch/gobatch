@@ -23,6 +23,7 @@ type csvWriter struct {
 
 type csvFileItemReader struct {
 }
+
 func (r *csvFileItemReader) Open(fd FileObjectModel) (interface{}, error) {
 	if fd.Type != CSV {
 		return nil, errors.New("file type doesn't match csvFileItemReader")
@@ -105,6 +106,7 @@ func (r *csvFileItemReader) Count(fd FileObjectModel) (int64, error) {
 
 type csvFileItemWriter struct {
 }
+
 func (r *csvFileItemWriter) Open(fd FileObjectModel) (interface{}, error) {
 	if fd.Type != CSV {
 		return nil, errors.New("file type doesn't match csvFileItemWriter")
@@ -166,6 +168,7 @@ func (r *csvFileItemWriter) WriteItem(handle interface{}, item interface{}) erro
 
 type csvFileMergeSplitter struct {
 }
+
 func (r *csvFileMergeSplitter) Merge(src []FileObjectModel, dest FileObjectModel) error {
 	err := Merge(src, dest)
 	return err

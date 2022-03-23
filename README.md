@@ -338,7 +338,7 @@ func buildAndRunJob() {
 ### Global Settings
 
 #### SetDB
-GoBatch need a database to store job and step execution contexts, so you must pass a *sql.DB instance to GoBatch before running job.
+GoBatch needs a database to store job and step execution contexts, so you must pass a *sql.DB instance to GoBatch before running job.
 ```go
     gobatch.SetDB(sqlDb)
 ```

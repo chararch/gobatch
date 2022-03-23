@@ -7,11 +7,11 @@ import (
 )
 
 const (
-	FileItemReaderHandleKey    = "gobatch.FileItemReader.handle"
-	FileItemReaderFileNameKey  = "gobatch.FileItemWriter.fileName"
-	FileItemReaderCurrentIndex = "gobatch.FileItemReader.current.index"
-	FileItemReaderStart        = "gobatch.FileItemReader.start"
-	FileItemReaderEnd          = "gobatch.FileItemReader.end"
+	fileItemReaderHandleKey    = "gobatch.FileItemReader.handle"
+	fileItemReaderFileNameKey  = "gobatch.FileItemWriter.fileName"
+	fileItemReaderCurrentIndex = "gobatch.FileItemReader.current.index"
+	fileItemReaderStart        = "gobatch.FileItemReader.start"
+	fileItemReaderEnd          = "gobatch.FileItemReader.end"
 )
 
 type fileReader struct {
@@ -22,7 +22,7 @@ type fileReader struct {
 
 func (r *fileReader) Open(execution *StepExecution) BatchError {
 	//get actual file name
-	fd := r.fd                            //copy fd
+	fd := r.fd //copy fd
 	fp := &FilePath{fd.FileName}
 	fileName, err := fp.Format(execution)
 	if err != nil {
@@ -44,10 +44,10 @@ func (r *fileReader) Open(execution *StepExecution) BatchError {
 	if e != nil {
 		return NewBatchError(ErrCodeGeneral, "open file reader:%v err", fd, e)
 	}
-	execution.StepExecutionContext.Put(FileItemReaderHandleKey, handle)
-	execution.StepExecutionContext.Put(FileItemReaderFileNameKey, fd.FileName)
+	execution.StepExecutionContext.Put(fileItemReaderHandleKey, handle)
+	execution.StepExecutionContext.Put(fileItemReaderFileNameKey, fd.FileName)
 	executionCtx := execution.StepExecutionContext
-	currentIndex, _ := executionCtx.GetInt64(FileItemReaderCurrentIndex)
+	currentIndex, _ := executionCtx.GetInt64(fileItemReaderCurrentIndex)
 	err = r.reader.SkipTo(handle, currentIndex)
 	if err != nil {
 		return NewBatchError(ErrCodeGeneral, "skip to file item:%v pos:%v err", fd, currentIndex, err)
@@ -58,16 +58,16 @@ func (r *fileReader) Open(execution *StepExecution) BatchError {
 func (r *fileReader) Read(chunkCtx *ChunkContext) (interface{}, BatchError) {
 	stepCtx := chunkCtx.StepExecution.StepContext
 	executionCtx := chunkCtx.StepExecution.StepExecutionContext
-	endPos, _ := stepCtx.GetInt64(FileItemReaderEnd)
-	currentIndex, _ := executionCtx.GetInt64(FileItemReaderCurrentIndex)
-	handle := executionCtx.Get(FileItemReaderHandleKey)
-	fileName := executionCtx.Get(FileItemReaderFileNameKey)
+	endPos, _ := stepCtx.GetInt64(fileItemReaderEnd)
+	currentIndex, _ := executionCtx.GetInt64(fileItemReaderCurrentIndex)
+	handle := executionCtx.Get(fileItemReaderHandleKey)
+	fileName := executionCtx.Get(fileItemReaderFileNameKey)
 	if currentIndex < endPos {
 		item, e := r.reader.ReadItem(handle)
 		if e != nil {
 			return nil, NewBatchError(ErrCodeGeneral, "read item from file:%v err", fileName, e)
 		}
-		executionCtx.Put(FileItemReaderCurrentIndex, currentIndex+1)
+		executionCtx.Put(fileItemReaderCurrentIndex, currentIndex+1)
 		return item, nil
 	}
 	return nil, nil
@@ -75,9 +75,9 @@ func (r *fileReader) Read(chunkCtx *ChunkContext) (interface{}, BatchError) {
 
 func (r *fileReader) Close(execution *StepExecution) BatchError {
 	executionCtx := execution.StepExecutionContext
-	handle := executionCtx.Get(FileItemReaderHandleKey)
-	fileName := executionCtx.Get(FileItemReaderFileNameKey)
-	executionCtx.Remove(FileItemReaderHandleKey)
+	handle := executionCtx.Get(fileItemReaderHandleKey)
+	fileName := executionCtx.Get(fileItemReaderFileNameKey)
+	executionCtx.Remove(fileItemReaderHandleKey)
 	e := r.reader.Close(handle)
 	if e != nil {
 		return NewBatchError(ErrCodeGeneral, "close file reader:%v err", fileName, e)
@@ -108,7 +108,7 @@ func (p *filePartitioner) Partition(execution *StepExecution, partitions uint) (
 		}
 	}()
 	// get actual file name
-	fd := p.fd                            //copy fd
+	fd := p.fd //copy fd
 	fp := &FilePath{fd.FileName}
 	fileName, err := fp.Format(execution)
 	if err != nil {
@@ -150,9 +150,9 @@ func (p *filePartitioner) Partition(execution *StepExecution, partitions uint) (
 		subExecution := execution.deepCopy()
 		subExecution.StepName = partitionName
 		subExecution.StepContextId = 0
-		subExecution.StepContext.Put(FileItemReaderStart, start)
-		subExecution.StepContext.Put(FileItemReaderEnd, end)
-		subExecution.StepExecutionContext.Put(FileItemReaderCurrentIndex, start)
+		subExecution.StepContext.Put(fileItemReaderStart, start)
+		subExecution.StepContext.Put(fileItemReaderEnd, end)
+		subExecution.StepExecutionContext.Put(fileItemReaderCurrentIndex, start)
 		subExecutions = append(subExecutions, subExecution)
 		i++
 	}

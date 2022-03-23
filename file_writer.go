@@ -7,8 +7,8 @@ import (
 )
 
 const (
-	FileItemWriterHandleKey   = "gobatch.FileItemWriter.handle"
-	FileItemWriterFileNameKey = "gobatch.FileItemWriter.fileName"
+	fileItemWriterHandleKey   = "gobatch.FileItemWriter.handle"
+	fileItemWriterFileNameKey = "gobatch.FileItemWriter.fileName"
 )
 
 type fileWriter struct {
@@ -21,7 +21,7 @@ type fileWriter struct {
 func (w *fileWriter) Open(execution *StepExecution) BatchError {
 	stepName := execution.StepName
 	//get actual file name
-	fd := w.fd                            //copy fd
+	fd := w.fd //copy fd
 	fp := &FilePath{fd.FileName}
 	fileName, err := fp.Format(execution)
 	if err != nil {
@@ -35,14 +35,14 @@ func (w *fileWriter) Open(execution *StepExecution) BatchError {
 	if e != nil {
 		return NewBatchError(ErrCodeGeneral, "open file writer:%v err", fd.FileName, e)
 	}
-	execution.StepExecutionContext.Put(FileItemWriterHandleKey, handle)
-	execution.StepExecutionContext.Put(FileItemWriterFileNameKey, fd.FileName)
+	execution.StepExecutionContext.Put(fileItemWriterHandleKey, handle)
+	execution.StepExecutionContext.Put(fileItemWriterFileNameKey, fd.FileName)
 	return nil
 }
 func (w *fileWriter) Write(items []interface{}, chunkCtx *ChunkContext) BatchError {
 	executionCtx := chunkCtx.StepExecution.StepExecutionContext
-	handle := executionCtx.Get(FileItemWriterHandleKey)
-	fileName := executionCtx.Get(FileItemWriterFileNameKey)
+	handle := executionCtx.Get(fileItemWriterHandleKey)
+	fileName := executionCtx.Get(fileItemWriterFileNameKey)
 	for _, item := range items {
 		e := w.writer.WriteItem(handle, item)
 		if e != nil {
@@ -53,9 +53,9 @@ func (w *fileWriter) Write(items []interface{}, chunkCtx *ChunkContext) BatchErr
 }
 func (w *fileWriter) Close(execution *StepExecution) BatchError {
 	executionCtx := execution.StepExecutionContext
-	handle := executionCtx.Get(FileItemWriterHandleKey)
-	fileName := executionCtx.Get(FileItemWriterFileNameKey)
-	executionCtx.Remove(FileItemWriterHandleKey)
+	handle := executionCtx.Get(fileItemWriterHandleKey)
+	fileName := executionCtx.Get(fileItemWriterFileNameKey)
+	executionCtx.Remove(fileItemWriterHandleKey)
 	e := w.writer.Close(handle)
 	if e != nil {
 		return NewBatchError(ErrCodeGeneral, "close file writer:%v err", fileName, e)
@@ -79,7 +79,7 @@ func (w *fileWriter) Aggregate(execution *StepExecution, subExecutions []*StepEx
 	if w.merger != nil {
 		subFiles := make([]file.FileObjectModel, 0)
 		for _, subExecution := range subExecutions {
-			fileName := subExecution.StepExecutionContext.Get(FileItemWriterFileNameKey)
+			fileName := subExecution.StepExecutionContext.Get(fileItemWriterFileNameKey)
 			fd := w.fd
 			fd.FileName = fileName.(string)
 			subFiles = append(subFiles, fd)

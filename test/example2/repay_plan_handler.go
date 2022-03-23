@@ -6,12 +6,12 @@ import (
 	"time"
 )
 
-type RepayPlanHandler struct {
+type repayPlanHandler struct {
 	//TradeReader
 	db *sql.DB
 }
 
-func (h *RepayPlanHandler) Process(item interface{}, chunkCtx *gobatch.ChunkContext) (interface{}, gobatch.BatchError) {
+func (h *repayPlanHandler) Process(item interface{}, chunkCtx *gobatch.ChunkContext) (interface{}, gobatch.BatchError) {
 	trade := item.(*Trade)
 	plans := make([]*RepayPlan, 0)
 	restPrincipal := trade.Amount
@@ -36,7 +36,7 @@ func (h *RepayPlanHandler) Process(item interface{}, chunkCtx *gobatch.ChunkCont
 	return plans, nil
 }
 
-func (h *RepayPlanHandler) Write(items []interface{}, chunkCtx *gobatch.ChunkContext) gobatch.BatchError {
+func (h *repayPlanHandler) Write(items []interface{}, chunkCtx *gobatch.ChunkContext) gobatch.BatchError {
 	for _, item := range items {
 		plans := item.([]*RepayPlan)
 		for _, plan := range plans {

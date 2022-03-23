@@ -108,6 +108,7 @@ func (r *jsonFileItemWriter) WriteItem(handle interface{}, item interface{}) err
 
 type jsonFileMergeSplitter struct {
 }
+
 func (r *jsonFileMergeSplitter) Merge(src []FileObjectModel, dest FileObjectModel) error {
 	err := Merge(src, dest)
 	return err
@@ -116,4 +117,3 @@ func (r *jsonFileMergeSplitter) Split(src FileObjectModel, dest []FileObjectMode
 	err := Split(src, dest, strategy)
 	return err
 }
-

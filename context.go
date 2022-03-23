@@ -9,10 +9,12 @@ type batchContext struct {
 	kvs map[string]interface{}
 }
 
+//BatchContext contains properties during a job or step execution
 type BatchContext struct {
 	ctx batchContext
 }
 
+//NewBatchContext new instance
 func NewBatchContext() *BatchContext {
 	c := &BatchContext{
 		ctx: batchContext{
@@ -165,6 +167,6 @@ func (ctx *BatchContext) UnmarshalJSON(b []byte) error {
 
 type ChunkContext struct {
 	StepExecution *StepExecution
-	Tx interface{}
-	End bool
+	Tx            interface{}
+	End           bool
 }

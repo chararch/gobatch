@@ -6,16 +6,17 @@ import (
 	"github.com/chararch/gobatch"
 )
 
-type TradeReader struct {
+type tradeReader struct {
 	db *sql.DB
 }
-func (h *TradeReader) Open(execution *gobatch.StepExecution) gobatch.BatchError {
+
+func (h *tradeReader) Open(execution *gobatch.StepExecution) gobatch.BatchError {
 	return nil
 }
-func (h *TradeReader) Close(execution *gobatch.StepExecution) gobatch.BatchError {
+func (h *tradeReader) Close(execution *gobatch.StepExecution) gobatch.BatchError {
 	return nil
 }
-func (h *TradeReader) ReadKeys() ([]interface{}, error) {
+func (h *tradeReader) ReadKeys() ([]interface{}, error) {
 	rows, err := h.db.Query("select id from t_trade")
 	if err != nil {
 		return nil, err
@@ -33,7 +34,7 @@ func (h *TradeReader) ReadKeys() ([]interface{}, error) {
 	}
 	return result, nil
 }
-func (h *TradeReader) ReadItem(key interface{}) (interface{}, error) {
+func (h *tradeReader) ReadItem(key interface{}) (interface{}, error) {
 	id := int64(0)
 	switch r := key.(type) {
 	case int64:

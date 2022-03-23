@@ -5,6 +5,7 @@ import (
 	"time"
 )
 
+//JobExecution represents context of a job execution
 type JobExecution struct {
 	JobExecutionId int64
 	JobInstanceId  int64
@@ -20,10 +21,12 @@ type JobExecution struct {
 	Version        int64
 }
 
+//AddStepExecution add a step execution in this job
 func (e *JobExecution) AddStepExecution(execution *StepExecution) {
 	e.StepExecutions = append(e.StepExecutions, execution)
 }
 
+//StepExecution represents context of a step execution
 type StepExecution struct {
 	StepExecutionId      int64
 	StepName             string

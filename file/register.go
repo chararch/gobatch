@@ -7,9 +7,9 @@ type fileHandler struct {
 	mergeSplitter MergeSplitter
 }
 
-var fileHandlers = map[string]*fileHandler{
-}
+var fileHandlers = map[string]*fileHandler{}
 
+// RegisterFileType register file type
 func RegisterFileType(ftype string, reader FileItemReader, writer FileItemWriter, mergeSplitter MergeSplitter) {
 	fileHandlers[ftype] = &fileHandler{
 		reader:        reader,
@@ -18,10 +18,11 @@ func RegisterFileType(ftype string, reader FileItemReader, writer FileItemWriter
 	}
 }
 
-func GetFileHandler(ftype string) *fileHandler {
+func getFileHandler(ftype string) *fileHandler {
 	return fileHandlers[ftype]
 }
 
+// GetFileItemReader get FileItemReader by type
 func GetFileItemReader(ftype string) FileItemReader {
 	switch ftype {
 	case TSV:
@@ -31,7 +32,7 @@ func GetFileItemReader(ftype string) FileItemReader {
 	case JSON:
 		return &jsonFileItemReader{}
 	default:
-		fh := GetFileHandler(ftype)
+		fh := getFileHandler(ftype)
 		if fh != nil && fh.reader != nil {
 			return fh.reader
 		}
@@ -39,6 +40,7 @@ func GetFileItemReader(ftype string) FileItemReader {
 	return nil
 }
 
+// GetFileItemWriter get FileItemWriter by type
 func GetFileItemWriter(ftype string) FileItemWriter {
 	switch ftype {
 	case TSV:
@@ -48,7 +50,7 @@ func GetFileItemWriter(ftype string) FileItemWriter {
 	case JSON:
 		return &jsonFileItemWriter{}
 	default:
-		fh := GetFileHandler(ftype)
+		fh := getFileHandler(ftype)
 		if fh != nil && fh.writer != nil {
 			return fh.writer
 		}
@@ -56,6 +58,7 @@ func GetFileItemWriter(ftype string) FileItemWriter {
 	return nil
 }
 
+// GetFileMergeSplitter get MergeSplitter by type
 func GetFileMergeSplitter(ftype string) MergeSplitter {
 	switch ftype {
 	case TSV:
@@ -65,7 +68,7 @@ func GetFileMergeSplitter(ftype string) MergeSplitter {
 	case JSON:
 		return &jsonFileMergeSplitter{}
 	default:
-		fh := GetFileHandler(ftype)
+		fh := getFileHandler(ftype)
 		if fh != nil && fh.mergeSplitter != nil {
 			return fh.mergeSplitter
 		}
@@ -73,15 +76,14 @@ func GetFileMergeSplitter(ftype string) MergeSplitter {
 	return nil
 }
 
-
 // checksumer
-var checksumers = map[string]Checksumer{
-}
+var checksumers = map[string]Checksumer{}
 
 func RegisterChecksumer(key string, ch Checksumer) {
 	checksumers[key] = ch
 }
 
+// GetChecksumer get Checksumer by type
 func GetChecksumer(key string) Checksumer {
 	switch key {
 	case OKFlag:

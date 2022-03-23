@@ -46,10 +46,11 @@ var copyChecksumFileToFtp = file.FileMove{
 	ToFileName:    "trade/{date,yyyyMMdd}/trade.csv.md5",
 }
 
-type TradeImporter struct {
+type tradeImporter struct {
 	db *sql.DB
 }
-func (p *TradeImporter) Write(items []interface{}, chunkCtx *gobatch.ChunkContext) gobatch.BatchError {
+
+func (p *tradeImporter) Write(items []interface{}, chunkCtx *gobatch.ChunkContext) gobatch.BatchError {
 	for _, item := range items {
 		trade := item.(*Trade)
 		_, err := p.db.Exec("INSERT INTO t_trade(trade_no, account_no, type, amount, terms, interest_rate, trade_time, status) values (?,?,?,?,?,?,?,?)",
@@ -60,4 +61,3 @@ func (p *TradeImporter) Write(items []interface{}, chunkCtx *gobatch.ChunkContex
 	}
 	return nil
 }
-

@@ -8,21 +8,21 @@ import (
 )
 
 const (
-	ItemReaderKeyList      = "gobatch.ItemReader.key.list"
+	//ItemReaderKeyList the key of keyList in StepContext
+	ItemReaderKeyList = "gobatch.ItemReader.key.list"
+	//ItemReaderCurrentIndex the key of current offset of step's keyList in StepContext
 	ItemReaderCurrentIndex = "gobatch.ItemReader.current.index"
-	ItemReaderMaxIndex     = "gobatch.ItemReader.max.index"
+	//ItemReaderMaxIndex the key of max index of step's keyList in StepContext
+	ItemReaderMaxIndex = "gobatch.ItemReader.max.index"
 )
 
+// ItemReader is for loading large amount of data from a datasource like database, used in a chunk step.
+// When the step executing, it first loads all data keys by calling ReadKeys() once, then load full data by key one by one in every chunk.
 type ItemReader interface {
 	//ReadKeys read all keys of some kind of data
 	ReadKeys() ([]interface{}, error)
 	//ReadItem read value by one key from ReadKeys result
 	ReadItem(key interface{}) (interface{}, error)
-}
-
-type OpenCloser interface {
-	Open(execution *StepExecution) BatchError
-	Close(execution *StepExecution) BatchError
 }
 
 type defaultChunkReader struct {

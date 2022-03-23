@@ -17,6 +17,7 @@ func newTaskPool(size int) *taskPool {
 	}
 }
 
+// Future get result in future
 type Future interface {
 	Get() (interface{}, error)
 }
@@ -30,14 +31,12 @@ func (f *futureImpl) Get() (interface{}, error) {
 	err := <-f.ch
 	if err == nil {
 		return result, nil
-	} else {
-		e, ok := err.(error)
-		if ok {
-			return result, e
-		} else {
-			return result, fmt.Errorf("future get err:%v", err)
-		}
 	}
+	e, ok := err.(error)
+	if ok {
+		return result, e
+	}
+	return result, fmt.Errorf("future get err:%v", err)
 }
 
 func (pool *taskPool) Submit(ctx context.Context, task func() (interface{}, error)) Future {

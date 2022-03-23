@@ -6,10 +6,14 @@ import (
 )
 
 const (
-	DefaultChunkSize  = 10
+	//DefaultChunkSize default number of record per chunk to read
+	DefaultChunkSize = 10
+	//DefaultPartitions default number of partitions to construct a step
 	DefaultPartitions = 1
 
+	//DefaultMinPartitionSize default min number of record to process in a sub step of a partitionStep
 	DefaultMinPartitionSize = 1
+	//DefaultMaxPartitionSize default max number of record to process in a sub step of a partitionStep
 	DefaultMaxPartitionSize = 2147483647
 )
 
@@ -31,6 +35,7 @@ type stepBuilder struct {
 	partitionListeners []PartitionListener
 }
 
+//NewStep initialize a step builder
 func NewStep(name string, handler ...interface{}) *stepBuilder {
 	if name == "" {
 		panic("step name must not be empty")

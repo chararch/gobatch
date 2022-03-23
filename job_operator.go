@@ -11,6 +11,7 @@ import (
 
 var jobRegistry = make(map[string]Job)
 
+// Register register job to gobatch
 func Register(job Job) error {
 	if _, ok := jobRegistry[job.Name()]; ok {
 		return fmt.Errorf("job with name:%v has already been registered", job.Name())
@@ -19,14 +20,17 @@ func Register(job Job) error {
 	return nil
 }
 
+// Unregister unregister job to gobatch
 func Unregister(job Job) {
 	delete(jobRegistry, job.Name())
 }
 
+// Start start job by job name and params
 func Start(ctx context.Context, jobName string, params string) (int64, error) {
 	return doStart(ctx, jobName, params, false)
 }
 
+// StartAsync start job by job name and params asynchronously
 func StartAsync(ctx context.Context, jobName string, params string) (int64, error) {
 	return doStart(ctx, jobName, params, true)
 }
@@ -122,6 +126,7 @@ func parseJobParams(params string) (map[string]interface{}, error) {
 	return ret, nil
 }
 
+// Stop stop job by job name or job execution id
 func Stop(ctx context.Context, jobId interface{}) error {
 	switch id := jobId.(type) {
 	case string:
@@ -175,10 +180,12 @@ func Stop(ctx context.Context, jobId interface{}) error {
 	return errors.Errorf("job identifier:%v is either job name or job execution id", jobId)
 }
 
+// Restart restart job by job name or job execution id
 func Restart(ctx context.Context, jobId interface{}) (int64, error) {
 	return doRestart(ctx, jobId, false)
 }
 
+// RestartAsync restart job by job name or job execution id asynchronously
 func RestartAsync(ctx context.Context, jobId interface{}) (int64, error) {
 	return doRestart(ctx, jobId, true)
 }
@@ -199,10 +206,9 @@ func doRestart(ctx context.Context, jobId interface{}, async bool) (int64, error
 			} else {
 				return doStart(ctx, job.Name(), "", async)
 			}
-		} else {
-			logger.Error(ctx, "can not find job with name:%v", id)
-			return -1, errors.Errorf("can not find job with name:%v", id)
 		}
+		logger.Error(ctx, "can not find job with name:%v", id)
+		return -1, errors.Errorf("can not find job with name:%v", id)
 	case int64:
 		//find executions by execution id, then start
 		execution, err := findJobExecution(id)
@@ -217,10 +223,9 @@ func doRestart(ctx context.Context, jobId interface{}, async bool) (int64, error
 		if job, ok := jobRegistry[execution.JobName]; ok {
 			params, _ := util.JsonString(execution.JobParams)
 			return doStart(ctx, job.Name(), params, async)
-		} else {
-			logger.Error(ctx, "can not find job with name:%v", execution.JobName)
-			return -1, errors.Errorf("can not find job with name:%v", execution.JobName)
 		}
+		logger.Error(ctx, "can not find job with name:%v", execution.JobName)
+		return -1, errors.Errorf("can not find job with name:%v", execution.JobName)
 	}
 	logger.Error(ctx, "job identifier:%v is either job name or job execution id", jobId)
 	return -1, errors.Errorf("job identifier:%v is either job name or job execution id", jobId)

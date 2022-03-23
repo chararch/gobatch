@@ -10,6 +10,7 @@ import (
 	"time"
 )
 
+// LocalFileSystem a FileStorage implementation backed by local file system
 type LocalFileSystem struct {
 }
 
@@ -39,6 +40,7 @@ func (fs *LocalFileSystem) Create(fileName, encoding string) (io.WriteCloser, er
 	return os.Create(fileName)
 }
 
+// FTPFileSystem a FileStorage implementation backed by ftp
 type FTPFileSystem struct {
 	Hort        string
 	Port        int
@@ -146,6 +148,7 @@ func (fs *FTPFileSystem) Create(fileName, encoding string) (writer io.WriteClose
 	}, nil
 }
 
+// FTPFileInStream represents a ftp file input stream
 type FTPFileInStream struct {
 	c *ftp.ServerConn
 	r io.ReadCloser
@@ -165,6 +168,7 @@ func (fis *FTPFileInStream) Close() (err error) {
 	return err
 }
 
+// FTPFileOutStream represents a ftp file output stream
 type FTPFileOutStream struct {
 	c  *ftp.ServerConn
 	w  io.WriteCloser
@@ -176,7 +180,7 @@ func (fis *FTPFileOutStream) Write(p []byte) (n int, err error) {
 }
 func (fis *FTPFileOutStream) Close() (err error) {
 	defer func() {
-		err = <- fis.ch
+		err = <-fis.ch
 		e := fis.c.Quit()
 		if err == nil {
 			err = e

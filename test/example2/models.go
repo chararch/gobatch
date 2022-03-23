@@ -2,6 +2,7 @@ package example2
 
 import "time"
 
+// Trade trade model
 type Trade struct {
 	TradeNo      string    `order:"0" header:"trade_no"`
 	AccountNo    string    `order:"1" header:"account_no"`
@@ -13,16 +14,17 @@ type Trade struct {
 	Status       string    `order:"6" header:"status"`
 }
 
+// RepayPlan repay plan model
 type RepayPlan struct {
-	Id               int64
-	AccountNo        string
-	LoanNo           string
-	Term             int
-	Principal        float64
-	Interest         float64
-	InitDate         time.Time
-	RepayDate        time.Time
-	RepayState       string
-	CreateTime       time.Time
-	UpdateTime       time.Time
+	Id         int64
+	AccountNo  string
+	LoanNo     string
+	Term       int
+	Principal  float64
+	Interest   float64
+	InitDate   time.Time
+	RepayDate  time.Time
+	RepayState string
+	CreateTime time.Time
+	UpdateTime time.Time
 }

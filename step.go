@@ -331,9 +331,9 @@ func (step *chunkStep) doChunk(ctx context.Context, chunk *ChunkContext, input *
 			listener.OnError(chunk, err)
 		}
 		return err
-	} else {
-		logger.Debug(ctx, "read chunk data success, jobExecutionId:%v, stepName:%v, read count:%v", chunk.StepExecution.JobExecution.JobExecutionId, chunk.StepExecution.StepName, len(input.items))
 	}
+	logger.Debug(ctx, "read chunk data success, jobExecutionId:%v, stepName:%v, read count:%v", chunk.StepExecution.JobExecution.JobExecutionId, chunk.StepExecution.StepName, len(input.items))
+
 	output.items = output.items[0:0]
 	if len(input.items) > 0 {
 		for index, item := range input.items {
@@ -346,9 +346,8 @@ func (step *chunkStep) doChunk(ctx context.Context, chunk *ChunkContext, input *
 						listener.OnError(chunk, err)
 					}
 					return err
-				} else {
-					logger.Debug(ctx, "process chunk item success, jobExecutionId:%v, stepName:%v, inItem:%v, outItem:%v", chunk.StepExecution.JobExecution.JobExecutionId, chunk.StepExecution.StepName, item, outItem)
 				}
+				logger.Debug(ctx, "process chunk item success, jobExecutionId:%v, stepName:%v, inItem:%v, outItem:%v", chunk.StepExecution.JobExecution.JobExecutionId, chunk.StepExecution.StepName, item, outItem)
 			}
 			if outItem != nil {
 				output.items = append(output.items, outItem)
@@ -555,13 +554,13 @@ func (step *partitionStep) Exec(ctx context.Context, execution *StepExecution) (
 	return nil
 }
 
-const PartitionStepPartitionsKey = "gobatch.partitionStep.partitions"
+const partitionStepPartitionsKey = "gobatch.partitionStep.partitions"
 
 func (step *partitionStep) split(ctx context.Context, execution *StepExecution, partitions uint) ([]*StepExecution, BatchError) {
-	if execution.StepExecutionContext.Exists(PartitionStepPartitionsKey) {
-		savedPartitions, e := execution.StepExecutionContext.GetInt(PartitionStepPartitionsKey, int(partitions))
+	if execution.StepExecutionContext.Exists(partitionStepPartitionsKey) {
+		savedPartitions, e := execution.StepExecutionContext.GetInt(partitionStepPartitionsKey, int(partitions))
 		if e != nil {
-			return nil, NewBatchError(ErrCodeGeneral, "get '%v' from step:%v execution context failed", PartitionStepPartitionsKey, execution.StepName, e)
+			return nil, NewBatchError(ErrCodeGeneral, "get '%v' from step:%v execution context failed", partitionStepPartitionsKey, execution.StepName, e)
 		}
 		logger.Info(ctx, "split step:%v, saved partitions in StepExecutionContext:%v, try to get last splitted subExecutions", execution.StepName, savedPartitions)
 		subExecutions := make([]*StepExecution, 0, savedPartitions)
@@ -609,7 +608,7 @@ func (step *partitionStep) split(ctx context.Context, execution *StepExecution, 
 	for _, subExecution := range subExecutions {
 		subExecution.JobExecution = execution.JobExecution
 	}
-	execution.StepExecutionContext.Put(PartitionStepPartitionsKey, len(subExecutions))
+	execution.StepExecutionContext.Put(partitionStepPartitionsKey, len(subExecutions))
 	return subExecutions, nil
 }
 

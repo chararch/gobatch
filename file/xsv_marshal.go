@@ -34,8 +34,8 @@ func slice2Map(s []string) map[string]int {
 
 func getMetadata(tp reflect.Type) (*xsvMetadata, error) {
 	meta := &xsvMetadata{
-		structType:              tp,
-		defaultByOrder:          make(map[int]string),
+		structType:     tp,
+		defaultByOrder: make(map[int]string),
 		//structFields:            make([]string, 0),
 		//structFieldMap:          make(map[string]int),
 		structUnOrderedFields:   make([]string, 0),
@@ -123,7 +123,7 @@ func getMetadata(tp reflect.Type) (*xsvMetadata, error) {
 					return nil, errors.Errorf("can not serialize struct with duplicate header:%v", header)
 				}
 			}
-			for header, _ := range meta2.structUnOrderedFieldMap {
+			for header := range meta2.structUnOrderedFieldMap {
 				if _, ok := meta.structUnOrderedFieldMap[header]; !ok {
 					meta.structUnOrderedFieldMap[header] = len(meta.structUnOrderedFields)
 					meta.structUnOrderedFields = append(meta.structUnOrderedFields, header)
@@ -163,7 +163,7 @@ func getMetadata(tp reflect.Type) (*xsvMetadata, error) {
 						return nil, errors.Errorf("can not serialize struct with duplicate header:%v", header)
 					}
 				}
-				for header, _ := range meta2.structUnOrderedFieldMap {
+				for header := range meta2.structUnOrderedFieldMap {
 					if _, ok := meta.structUnOrderedFieldMap[header]; !ok {
 						meta.structUnOrderedFieldMap[header] = len(meta.structUnOrderedFields)
 						meta.structUnOrderedFields = append(meta.structUnOrderedFields, header)
@@ -744,74 +744,70 @@ func formatVal(vf reflect.Value, tf reflect.Type, tag reflect.StructTag) (string
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Float32, reflect.Float64, reflect.String:
 		if tag.Get("format") != "" {
 			return fmt.Sprintf(tag.Get("format"), vf.Interface()), nil
-		} else {
-			return fmt.Sprintf("%v", vf.Interface()), nil
 		}
+		return fmt.Sprintf("%v", vf.Interface()), nil
 	case reflect.Bool:
 		fmt := tag.Get("format")
 		if fmt == "Y" {
 			if vf.Bool() {
 				return "Y", nil
-			} else {
-				return "N", nil
 			}
+			return "N", nil
 		} else if fmt == "y" {
 			if vf.Bool() {
 				return "y", nil
-			} else {
-				return "n", nil
 			}
+			return "n", nil
 		} else if fmt == "Yes" {
 			if vf.Bool() {
 				return "Yes", nil
-			} else {
-				return "No", nil
 			}
+			return "No", nil
+
 		} else if fmt == "YES" {
 			if vf.Bool() {
 				return "YES", nil
-			} else {
-				return "NO", nil
 			}
+			return "NO", nil
+
 		} else if fmt == "1" {
 			if vf.Bool() {
 				return "1", nil
-			} else {
-				return "0", nil
 			}
+			return "0", nil
+
 		} else if fmt == "T" {
 			if vf.Bool() {
 				return "T", nil
-			} else {
-				return "F", nil
 			}
+			return "F", nil
+
 		} else if fmt == "True" {
 			if vf.Bool() {
 				return "True", nil
-			} else {
-				return "False", nil
 			}
+			return "False", nil
+
 		} else if fmt == "TRUE" {
 			if vf.Bool() {
 				return "TRUE", nil
-			} else {
-				return "FALSE", nil
 			}
+			return "FALSE", nil
+
 		} else {
 			if vf.Bool() {
 				return "true", nil
-			} else {
-				return "false", nil
 			}
+			return "false", nil
+
 		}
 	case reflect.Struct:
 		if tf.String() == "time.Time" {
 			tm := vf.Interface().(time.Time)
 			if tag.Get("format") != "" {
 				return tm.Format(tag.Get("format")), nil
-			} else {
-				return tm.Format("2006-01-02"), nil
 			}
+			return tm.Format("2006-01-02"), nil
 		}
 	case reflect.Ptr:
 		if vf.IsZero() {
@@ -820,15 +816,14 @@ func formatVal(vf reflect.Value, tf reflect.Type, tag reflect.StructTag) (string
 				tt = tt.Elem()
 			}
 			return formatVal(vf, tt, tag)
-		} else {
-			tt := tf.Elem()
-			vv := vf.Elem()
-			for tt.Kind() == reflect.Ptr && !vv.IsZero() {
-				tt = tt.Elem()
-				vv = vv.Elem()
-			}
-			return formatVal(vv, tt, tag)
 		}
+		tt := tf.Elem()
+		vv := vf.Elem()
+		for tt.Kind() == reflect.Ptr && !vv.IsZero() {
+			tt = tt.Elem()
+			vv = vv.Elem()
+		}
+		return formatVal(vv, tt, tag)
 	}
 	return "", errors.Errorf("can not format type:%v", tf.String())
 }

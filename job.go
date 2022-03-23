@@ -8,6 +8,7 @@ import (
 	"time"
 )
 
+//Job job interface used by GoBatch
 type Job interface {
 	Name() string
 	Start(ctx context.Context, execution *JobExecution) BatchError

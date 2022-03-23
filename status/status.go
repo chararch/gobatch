@@ -1,15 +1,23 @@
 package status
 
+//BatchStatus status of job or step execution
 type BatchStatus string
 
 const (
-	STARTING  BatchStatus = "STARTING"
-	STARTED   BatchStatus = "STARTED"
-	STOPPING  BatchStatus = "STOPPING"
-	STOPPED   BatchStatus = "STOPPED"
+	//STARTING represent beginning of a job or step execution
+	STARTING BatchStatus = "STARTING"
+	//STARTED job or step have be started and is running
+	STARTED BatchStatus = "STARTED"
+	//STOPPING job or step to be stopped
+	STOPPING BatchStatus = "STOPPING"
+	//STOPPED job or step have be stopped
+	STOPPED BatchStatus = "STOPPED"
+	//COMPLETED job or step have finished successfully
 	COMPLETED BatchStatus = "COMPLETED"
-	FAILED    BatchStatus = "FAILED"
-	UNKNOWN   BatchStatus = "UNKNOWN"
+	//FAILED job or step have failed
+	FAILED BatchStatus = "FAILED"
+	//UNKNOWN job or step have aborted due to unknown reason
+	UNKNOWN BatchStatus = "UNKNOWN"
 )
 
 var statuses = map[BatchStatus]int{
