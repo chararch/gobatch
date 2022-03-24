@@ -1,4 +1,9 @@
 # GoBatch
+
+[![GoDoc Reference](https://godoc.org/github.com/chararch/gobatch?status.svg)](http://godoc.org/github.com/chararch/gobatch)
+[![Go Report Card](https://goreportcard.com/badge/github.com/chararch/gobatch)](https://goreportcard.com/report/github.com/chararch/gobatch)
+[![MIT license](https://img.shields.io/badge/license-MIT-brightgreen.svg)](https://opensource.org/licenses/MIT)
+
 GoBatch is a batch processing framework in Go like Spring Batch in Java. If you are familiar with Spring Batch, you will find GoBatch very easy to use.
 
 ## Architecture
@@ -8,9 +13,9 @@ In GoBatch, Job is divided into multiple Steps, the steps are executed successiv
 ![](https://raw.githubusercontent.com/chararch/images/main/gobatch.png)
 
 There are three types of step:
-- *Simple Step* execute business logic in a single Handler.
-- *Chunk Step* process data by chunks. The process flow is reading a chunk of data, processing it, then writing output. The process is repeated until no more data read.
-- *Partition Step* split task into multiple sub steps, then execute sub steps parallelly, and aggregate result of sub steps at last.
+- *Simple Step* execute business logic defined in Handler in a single thread.
+- *Chunk Step* process data by chunks. The process flow is reading a chunk of data, processing it, then writing output. The process is repeated until no more data to read.
+- *Partition Step* split task into multiple sub tasks, then execute sub tasks parallelly in sub steps, and aggregate result of sub steps at last.
 
 ![](https://raw.githubusercontent.com/chararch/images/main/step.png)
 
