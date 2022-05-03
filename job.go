@@ -103,7 +103,7 @@ func (job *simpleJob) Start(ctx context.Context, execution *JobExecution) (err B
 
 func execStep(ctx context.Context, step Step, execution *JobExecution) (err BatchError) {
 	defer func() {
-		if err != nil && err.Code() == ErrCodeStop {
+		if err != nil && err.Code() != ErrCodeStop {
 			logger.Error(ctx, "error in step executing, jobExecutionId:%v, stepName:%v, err:%v", execution.JobExecutionId, step.Name(), err)
 		}
 	}()

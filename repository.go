@@ -243,7 +243,7 @@ func checkJobStopping(execution *JobExecution) (bool, BatchError) {
 	if err != nil || storeExecution == nil {
 		return false, err
 	}
-	stoppping := storeExecution.Version != execution.Version || storeExecution.JobStatus == status.STOPPING
+	stoppping := storeExecution.Version != execution.Version && storeExecution.JobStatus == status.STOPPING
 	if stoppping {
 		execution.Version = storeExecution.Version
 	}
@@ -427,18 +427,20 @@ func saveStepExecution(ctx context.Context, execution *StepExecution) BatchError
 		return err
 	}
 	if stopping && execution.StepStatus != status.STOPPED {
-		oldStatus := execution.StepStatus
-		execution.StepStatus = status.STOPPED
-		execution.EndTime = time.Now()
-		err = updateStepStatus(execution)
-		i := 0
-		for err != nil && i < 3 {
+		if execution.StepStatus == status.STARTING || execution.StepStatus == status.STARTED {
+			oldStatus := execution.StepStatus
+			execution.StepStatus = status.STOPPED
+			execution.EndTime = time.Now()
 			err = updateStepStatus(execution)
-			logger.Warn(ctx, "update step status to STOPPED failed for %d times, step:%v, err:%v", i, execution.StepName, err)
-		}
-		if err != nil {
-			execution.StepStatus = oldStatus
-			logger.Error(ctx, "update step status to STOPPED failed, step:%v, err:%v", execution.StepName, err)
+			i := 0
+			for err != nil && i < 3 {
+				err = updateStepStatus(execution)
+				logger.Warn(ctx, "update step status to STOPPED failed for %d times, step:%v, err:%v", i, execution.StepName, err)
+			}
+			if err != nil {
+				execution.StepStatus = oldStatus
+				logger.Error(ctx, "update step status to STOPPED failed, step:%v, err:%v", execution.StepName, err)
+			}
 		}
 		return NewBatchError(ErrCodeStop, "the job is stopped")
 	}

@@ -17,9 +17,9 @@ const (
 )
 
 const (
-	//TSV a file type that have tab-seperated values as its content
+	//TSV a file type that have tab-separated values as its content
 	TSV = "tsv"
-	//CSV a file type that have comma-seperated values as its content
+	//CSV a file type that have comma-separated values as its content
 	CSV = "csv"
 	//JSON a file type that have json string as its content
 	JSON = "json"
@@ -226,7 +226,7 @@ func copyFile(idx int, srcFd FileObjectModel, writer *bufio.Writer) error {
 			return err
 		}
 		if idx == 0 {
-			header = strings.TrimSpace(header)
+			header = strings.TrimRight(header, "\n")
 			if header != "" {
 				header = fmt.Sprintf("%s\n", header)
 				_, er := writer.Write([]byte(header))
@@ -301,7 +301,7 @@ func Split(srcFd FileObjectModel, destFds []FileObjectModel, strategy FileSplitS
 		if err != nil && err != io.EOF {
 			return err
 		}
-		header = strings.TrimSpace(header)
+		header = strings.TrimRight(header, "\n")
 		if header != "" {
 			header = fmt.Sprintf("%s\n", header)
 			for _, bufWriter := range bufWriters {

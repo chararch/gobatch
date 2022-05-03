@@ -8,16 +8,16 @@ GoBatch is a batch processing framework in Go like Spring Batch in Java. If you 
 
 ## Architecture
 
-In GoBatch, Job is divided into multiple Steps, the steps are executed successively.
+In GoBatch, Job is divided into multiple Steps, the steps are executed successively. GoBatch will create a JobExecution data stored into database when executing a Job, also will create a StepExecution when executing a Step.
 
-![](https://raw.githubusercontent.com/chararch/images/main/gobatch.png)
+![](https://raw.githubusercontent.com/chararch/images/gobatch/main/gobatch.png)
 
 There are three types of step:
 - *Simple Step* execute business logic defined in Handler in a single thread.
 - *Chunk Step* process data by chunks. The process flow is reading a chunk of data, processing it, then writing output. The process is repeated until no more data to read.
 - *Partition Step* split task into multiple sub tasks, then execute sub tasks parallelly in sub steps, and aggregate result of sub steps at last.
 
-![](https://raw.githubusercontent.com/chararch/images/main/step.png)
+![](https://raw.githubusercontent.com/chararch/images/gobatch/main/step.png)
 
 ## Features
 
@@ -289,7 +289,7 @@ func (h *TradeReader) ReadItem(key interface{}) (interface{}, error) {
         return nil, fmt.Errorf("key type error, type:%T, value:%v", key, key)
     }
     trade := &Trade{}
-    result := h.db.Table("t_trade").Find(loan, "id = ?", id)
+    result := h.db.Table("t_trade").Find(trade, "id = ?", id)
     if result.Error != nil {
         return nil, result.Error
     }

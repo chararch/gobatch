@@ -22,7 +22,7 @@ type ChunkListener interface {
 	BeforeChunk(context *ChunkContext) BatchError
 	//AfterChunk execute after end of a chunk in a chunkStep
 	AfterChunk(context *ChunkContext) BatchError
-	//OnError execute when an error occured during a chunk in a chunkStep
+	//OnError execute when an error occurred during a chunk in a chunkStep
 	OnError(context *ChunkContext, err BatchError)
 }
 

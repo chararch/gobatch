@@ -6,11 +6,11 @@ type BatchStatus string
 const (
 	//STARTING represent beginning of a job or step execution
 	STARTING BatchStatus = "STARTING"
-	//STARTED job or step have be started and is running
+	//STARTED job or step have been started and is running
 	STARTED BatchStatus = "STARTED"
 	//STOPPING job or step to be stopped
 	STOPPING BatchStatus = "STOPPING"
-	//STOPPED job or step have be stopped
+	//STOPPED job or step have been stopped
 	STOPPED BatchStatus = "STOPPED"
 	//COMPLETED job or step have finished successfully
 	COMPLETED BatchStatus = "COMPLETED"
