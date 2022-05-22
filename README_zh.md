@@ -4,47 +4,47 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/chararch/gobatch)](https://goreportcard.com/report/github.com/chararch/gobatch)
 [![MIT license](https://img.shields.io/badge/license-MIT-brightgreen.svg)](https://opensource.org/licenses/MIT)
 
-English|[中文](README_zh.md)
+中文|[English](README.md)
 
-GoBatch is a batch processing framework in Go like Spring Batch in Java. If you are familiar with Spring Batch, you will find GoBatch very easy to use.
+GoBatch是一款Go语言下的批处理框架，类似于Java语言的Spring Batch。如果你用过Spring Batch，你会发现GoBatch很容易上手。
 
-## Architecture
+## 架构
 
-In GoBatch, Job is divided into multiple Steps, the steps are executed successively. GoBatch will create a JobExecution data stored into database when executing a Job, also will create a StepExecution when executing a Step.
+在GoBatch里面，任务（Job）被划分为多个按先后顺序依次执行的步骤（Step）。在执行任务时，框架会将任务和各个步骤的运行时相关数据记录到数据库中。
 
 ![](https://raw.githubusercontent.com/chararch/images/main/gobatch/gobatch.png)
 
-There are three types of step:
-- *Simple Step* execute business logic defined in Handler in a single thread.
-- *Chunk Step* process data by chunks. The process flow is reading a chunk of data, processing it, then writing output. The process is repeated until no more data to read.
-- *Partition Step* split task into multiple sub tasks, then execute sub tasks parallelly in sub steps, and aggregate result of sub steps at last.
+**步骤**包括3种类型：
+- **简单步骤**：接受一个Handler对象，并在单线程中执行Handler包含的业务逻辑。Handler是接口类型，由用户自行实现。
+- **分块步骤**：用于处理大批量步骤，将全部数据分成若干小块依次进行处理，分块大小由用户指定。每个分块的处理流程是先使用Reader读取一个分块大小数量的数据，接着通过Processor逐条处理读取的数据，最后将结果通过Writer写入存储。这个流程会一直重复执行，直到所有数据读取完毕（Reader.Read()返回nil）。其中Reader、Processor、Writer是接口类型，由用户实现。
+- **分区步骤**：用于将一个大任务分成多个子任务，每个子任务可以由独立的线程来执行。在运行时，分区步骤被分为多个并行执行的子步骤，所有子步骤执行完毕，将结果进行合并。分区步骤的业务逻辑可以通过Handler来实现，也可以通过Reader/Processor/Writer来实现，此外，必须通过Partitioner指定分区逻辑，如果需要合并结果，则还要指定Aggregator。**分区步骤与分块步骤的区别是：前者是多线程执行，后者是单线程执行**。
 
 ![](https://raw.githubusercontent.com/chararch/images/main/gobatch/step.png)
 
-## Features
+## 功能
 
-- Modular construction for batch application
-- Serial and parallel process flow on your need
-- Break point to resume job
-- Builtin file processing component
-- Listeners for job and step execution
-- Easy to extend
+1. 以模块化方式构建批处理应用程序。
+1. 管理多个批处理任务的运行。
+1. 任务被分为多个串行执行的步骤，一个步骤可以通过分区由多线程并行执行。
+1. 自动记录任务执行状态，支持任务失败后断点续跑。
+1. 内置文件读写组件，支持tsv、csv、json等格式的文件读写及校验。
+1. 提供多种Listener，便于对任务和步骤进行扩展。
 
-## Install
+## 安装
 
 ```shell
 go get -u github.com/chararch/gobatch
 ```
 
-## Use Step
+## 使用步骤
 
-1. Create or choose a database, eg: gobatch
-1. Create tables from [sql/schema_mysql.sql](https://github.com/chararch/gobatch/blob/master/sql/schema_mysql.sql) into previous database
-1. Write gobatch code and run it
+1. 创建或使用已有的数据库，库名如: gobatch
+1. 在前述数据库中，使用文件[sql/schema_mysql.sql](https://github.com/chararch/gobatch/blob/master/sql/schema_mysql.sql) 的内容创建表。
+1. 使用gobatch框架编写批处理代码并运行。
 
-## Code
+## 代码
 
-### Example
+### 一个例子
 
 ```go
 import (
@@ -110,11 +110,11 @@ func main()  {
 	gobatch.Start(context.Background(), job.Name(), "")
 }
 ```
-You can look at the code in [test/example.go](https://github.com/chararch/gobatch/blob/master/test/example.go)
+该示例代码位于 [test/example.go](https://github.com/chararch/gobatch/blob/master/test/example.go)
 
-### Write a Simple step
+### 编写简单步骤
 
-There are several methods to write a simple step logic:
+有多种方法编写简单步骤的逻辑，如下:
 ```go
 // 1. write a function with one of the following signature
 func(execution *StepExecution) BatchError
@@ -127,7 +127,7 @@ type Handler interface {
 	Handle(execution *StepExecution) BatchError
 }
 ```
-Once you wrote the function or Handler interface implementation, you can build step like this:
+当你使用以上函数定义或接口定义编写好了业务逻辑，则可以通过以下方式构造Step对象:
 ```go
 step1 := gobatch.NewStep("step1").Handler(myfunction).Build()
 step2 := gobatch.NewStep("step2").Handler(myHandler).Build()
@@ -136,9 +136,9 @@ step1 := gobatch.NewStep("step1", myfunction).Build()
 step2 := gobatch.NewStep("step2", myHandler).Build()
 ```
 
-### Write a Chunk step
+### 编写分块步骤
 
-To build a chunk step, you should implement the following interfaces, only the Reader is required:
+分块步骤需要实现以下3个接口（其中，只有Reader是必须实现的）：
 ```go
 type Reader interface {
     //Read each call of Read() will return a data item, if there is no more data, a nil item will be returned.
@@ -153,7 +153,7 @@ type Writer interface {
     Write(items []interface{}, chunkCtx *ChunkContext) BatchError
 }
 ```
-There is another interface named ItemReader, which you can use instead of Reader:
+框架还包含一个ItemReader接口，在某些情况下，可以用于代替Reader，其定义如下：
 ```go
 type ItemReader interface {
     //ReadKeys read all keys of some kind of data
@@ -162,18 +162,18 @@ type ItemReader interface {
     ReadItem(key interface{}) (interface{}, error)
 }
 ```
-For convenience, you can implement the following interface along with Reader or Writer to do some initialization or cleanup:
+为了方便起见，可以通过实现以下接口，在Reader或Writer中执行一些初始化或清理的动作：
 ```go
 type OpenCloser interface {
 	Open(execution *StepExecution) BatchError
 	Close(execution *StepExecution) BatchError
 }
 ```
-You could see the chunk step example under [test/example2](https://github.com/chararch/gobatch/blob/master/test/example2)
+示例代码可以参考 [test/example2](https://github.com/chararch/gobatch/blob/master/test/example2) 
 
-### Write a Partition step
+### 编写分区步骤
 
-you can implement the Partitioner interface to split a step into multiple sub steps, optionally you can implement the Aggregator interface if you want to do some aggregation after all sub steps completed:
+分区步骤必须要实现Partitioner接口，该接口用于将整个步骤要处理的数据分成多个分区，每个分区对应一个子步骤，框架会启动多个线程来并行执行多个子步骤。如果需要对子步骤的执行结果进行合并，还需要实现Aggregator接口。这两个接口定义如下：
 ```go
 type Partitioner interface {
 	//Partition generate sub step executions from specified step execution and partitions count
@@ -187,21 +187,23 @@ type Aggregator interface {
     Aggregate(execution *StepExecution, subExecutions []*StepExecution) BatchError
 }
 ```
-If you already have a chunk step with an ItemReader, you can easily build a partition step nothing more than specifying partitions count:
+对于分区步骤的子步骤来说，既可以是一个简单步骤（由Handler定义），也可以是一个分块步骤（通过Reader/Processor/Writer定义）。
+如果已有了一个包含ItemReader的分块步骤，则可以通过指定分区数量就可以构造分区步骤，如下：
 ```go
     step := gobatch.NewStep("partition_step").Handler(&ChunkHandler{db}).Partitions(10).Build()
 ```
+这种方式是由GoBatch框架内部基于ItemReader实现了Partitioner。
 
-### Read & Write File
+### 读写文件
 
-Suppose a file with the following content(each field seperated by a '\t'):
+我们假定有一个文件的内容如下(其中每行是一条记录，每个字段用'\t'分隔)：
 ```go
 trade_1	account_1	cash	1000	normal	2022-02-27 12:12:12
 trade_2	account_2	cash	1000	normal	2022-02-27 12:12:12
 trade_3	account_3	cash	1000	normal	2022-02-27 12:12:12
 ……
 ```
-We want to read the content and insert each record into a database table named 't_trade', then we do it this way:
+如果想读取该文件的内容，并将文件中每条记录插入到数据库中的 t_trade 表中，则可以通过以下方式来实现:
 ```go
 type Trade struct {
     TradeNo   string    `order:"0"`
@@ -246,7 +248,7 @@ func buildAndRunJob() {
 }
 ```
 
-Suppose we want export data in 't_trade' to a csv file, we can do like this:
+再假定我们需要将 t_trade 表中的数据导出为一个csv文件，可以按照以下方式来实现:
 ```go
 type Trade struct {
     TradeNo   string    `order:"0" header:"trade_no"`
@@ -305,9 +307,9 @@ func buildAndRunJob() {
 }
 ```
 
-### Listeners
+### 监听器
 
-There are different listeners for the lifecycle of job and step execution:
+框架提供了多种监听器，用于处理整个批处理任务和步骤执行过程中的各种事件，如下：
 ```go
 type JobListener interface {
 	BeforeJob(execution *JobExecution) BatchError
@@ -332,7 +334,7 @@ type PartitionListener interface {
 }
 ```
 
-You can specify listeners during building job:
+可以构建任务时指定监听器，示例如下：
 ```go
 func buildAndRunJob() {
     //...
@@ -342,16 +344,16 @@ func buildAndRunJob() {
 }
 ```
 
-### Global Settings
+### 全局设置
 
-#### SetDB
-GoBatch needs a database to store job and step execution contexts, so you must pass a *sql.DB instance to GoBatch before running job.
+#### 指定DB实例
+GoBatch框架需要使用数据库来存储任务和步骤执行过程中的上下文信息，因此在启动任务之前，必须注册一个 *sql.DB 实例到GoBatch中，如下：
 ```go
     gobatch.SetDB(sqlDb)
 ```
 
-#### SetTransactionManager
-If you are trying to build a chunk step, you must register a TransactionManager instance to GoBatch, the interface is:
+#### 指定事务管理器
+如果需要使用**分块步骤**，则必须设置一个事务管理器（TransactionManager）到GoBatch，事务管理器接口定义如下：
 ```go
 type TransactionManager interface {
 	BeginTx() (tx interface{}, err BatchError)
@@ -359,10 +361,13 @@ type TransactionManager interface {
 	Rollback(tx interface{}) BatchError
 }
 ```
-GoBatch has a DefaultTxManager, if you have set DB and have no TransactionManager set yet, GoBatch also create a DefaultTxManager instance for you.
+GoBatch框架包含一个默认的事务管理器，类名DefaultTxManager，如果已经设置了DB实例且尚未设置TransactionManager，则 GoBatch 会自动创建一个 DefaultTxManager 实例。当然，用户也可以指定自己的事务管理器来代替默认实现：
+```go
+  gobatch.SetTransactionManager(&CustomTransactionManager{})
+```
 
-#### SetMaxRunningJobs & SetMaxRunningSteps
-GoBatch has internal TaskPools to run jobs and steps, the max running jobs and steps are limited by the pool size. The default value of the max running jobs and steps are 10, 1000. You can change the default settings by:
+#### 设置最大并发任务数和最大并发步骤数
+GoBatch 内部使用池化技术（TaskPool）来运行任务和步骤。默认最大并发任务数和最大并发步骤数分别是10、1000，如果需要个性默认值，则设置如下：
 ```go
     gobatch.SetMaxRunningJobs(100)
     gobatch.SetMaxRunningSteps(5000)
