@@ -12,14 +12,14 @@ GoBatch是一款Go语言下的批处理框架，类似于Java语言的Spring Bat
 
 在GoBatch里面，任务（Job）被划分为多个按先后顺序依次执行的步骤（Step）。在执行任务时，框架会将任务和各个步骤的运行时相关数据记录到数据库中。
 
-![](https://raw.githubusercontent.com/chararch/images/main/gobatch/gobatch.png)
+![](https://gitee.com/chararch/images/raw/main/gobatch/gobatch.png)
 
 **步骤**包括3种类型：
 - **简单步骤**：接受一个Handler对象，并在单线程中执行Handler包含的业务逻辑。Handler是接口类型，由用户自行实现。
 - **分块步骤**：用于处理大批量步骤，将全部数据分成若干小块依次进行处理，分块大小由用户指定。每个分块的处理流程是先使用Reader读取一个分块大小数量的数据，接着通过Processor逐条处理读取的数据，最后将结果通过Writer写入存储。这个流程会一直重复执行，直到所有数据读取完毕（Reader.Read()返回nil）。其中Reader、Processor、Writer是接口类型，由用户实现。
 - **分区步骤**：用于将一个大任务分成多个子任务，每个子任务可以由独立的线程来执行。在运行时，分区步骤被分为多个并行执行的子步骤，所有子步骤执行完毕，将结果进行合并。分区步骤的业务逻辑可以通过Handler来实现，也可以通过Reader/Processor/Writer来实现，此外，必须通过Partitioner指定分区逻辑，如果需要合并结果，则还要指定Aggregator。**分区步骤与分块步骤的区别是：前者是多线程执行，后者是单线程执行**。
 
-![](https://raw.githubusercontent.com/chararch/images/main/gobatch/step.png)
+![](https://gitee.com/chararch/images/raw/main/gobatch/step.png)
 
 ## 功能
 
@@ -367,7 +367,7 @@ GoBatch框架包含一个默认的事务管理器，类名DefaultTxManager，如
 ```
 
 #### 设置最大并发任务数和最大并发步骤数
-GoBatch 内部使用池化技术（TaskPool）来运行任务和步骤。默认最大并发任务数和最大并发步骤数分别是10、1000，如果需要个性默认值，则设置如下：
+GoBatch 内部使用池化技术来运行任务和步骤。默认最大并发任务数和最大并发步骤数分别是10、1000，如果需要修改默认值，则设置如下：
 ```go
     gobatch.SetMaxRunningJobs(100)
     gobatch.SetMaxRunningSteps(5000)
