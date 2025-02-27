@@ -6,14 +6,16 @@ import (
 )
 
 const (
-	//DefaultChunkSize default number of record per chunk to read
+	// DefaultChunkSize specifies the default number of records to read in each chunk
 	DefaultChunkSize = 10
-	//DefaultPartitions default number of partitions to construct a step
+	// DefaultPartitions specifies the default number of partitions when constructing a step
 	DefaultPartitions = 1
 
-	//DefaultMinPartitionSize default min number of record to process in a sub step of a partitionStep
+	// DefaultMinPartitionSize specifies the minimum number of records that can be processed 
+	// in a partition sub-step
 	DefaultMinPartitionSize = 1
-	//DefaultMaxPartitionSize default max number of record to process in a sub step of a partitionStep
+	// DefaultMaxPartitionSize specifies the maximum number of records that can be processed
+	// in a partition sub-step
 	DefaultMaxPartitionSize = 2147483647
 )
 

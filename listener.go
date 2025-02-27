@@ -1,37 +1,37 @@
 package gobatch
 
-//JobListener job listener
+// JobListener defines callbacks for job lifecycle events
 type JobListener interface {
-	//BeforeJob execute before job start
+	// BeforeJob is called before a job execution starts
 	BeforeJob(execution *JobExecution) BatchError
-	//AfterJob execute after job end either normally or abnormally
+	// AfterJob is called after a job execution completes, regardless of success or failure
 	AfterJob(execution *JobExecution) BatchError
 }
 
-//StepListener job listener
+// StepListener defines callbacks for step lifecycle events
 type StepListener interface {
-	//BeforeStep execute before step start
+	// BeforeStep is called before a step execution starts
 	BeforeStep(execution *StepExecution) BatchError
-	//AfterStep execute after step end either normally or abnormally
+	// AfterStep is called after a step execution completes, regardless of success or failure
 	AfterStep(execution *StepExecution) BatchError
 }
 
-//ChunkListener job listener
+// ChunkListener defines callbacks for chunk processing events in chunk-oriented steps
 type ChunkListener interface {
-	//BeforeChunk execute before start of a chunk in a chunkStep
+	// BeforeChunk is called before processing a chunk in a chunk-oriented step
 	BeforeChunk(context *ChunkContext) BatchError
-	//AfterChunk execute after end of a chunk in a chunkStep
+	// AfterChunk is called after processing a chunk in a chunk-oriented step
 	AfterChunk(context *ChunkContext) BatchError
-	//OnError execute when an error occurred during a chunk in a chunkStep
+	// OnError is called when an error occurs during chunk processing
 	OnError(context *ChunkContext, err BatchError)
 }
 
-//PartitionListener job listener
+// PartitionListener defines callbacks for partition processing events
 type PartitionListener interface {
-	//BeforePartition execute before enter into Partitioner.Partition() in a partitionStep
+	// BeforePartition is called before the Partitioner.Partition() method is invoked
 	BeforePartition(execution *StepExecution) BatchError
-	//AfterPartition execute after return from Partitioner.Partition() in a partitionStep
+	// AfterPartition is called after the Partitioner.Partition() method returns successfully
 	AfterPartition(execution *StepExecution, subExecutions []*StepExecution) BatchError
-	//OnError execute when an error return from Partitioner.Partition() in a partitionStep
+	// OnError is called when Partitioner.Partition() returns an error
 	OnError(execution *StepExecution, err BatchError)
 }

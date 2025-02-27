@@ -8,10 +8,11 @@ import (
 	"github.com/pkg/errors"
 	"time"
 )
-
+// Global registry to store all registered jobs
 var jobRegistry = make(map[string]Job)
 
-// Register register job to gobatch
+// Register registers a job to the gobatch framework.
+// Returns an error if a job with the same name already exists.
 func Register(job Job) error {
 	if _, ok := jobRegistry[job.Name()]; ok {
 		return fmt.Errorf("job with name:%v has already been registered", job.Name())
@@ -20,17 +21,19 @@ func Register(job Job) error {
 	return nil
 }
 
-// Unregister unregister job to gobatch
+// Unregister removes a job from the gobatch framework
 func Unregister(job Job) {
 	delete(jobRegistry, job.Name())
 }
 
-// Start start job by job name and params
+// Start initiates a job execution synchronously with the given job name and parameters.
+// Returns the job execution ID and any error encountered.
 func Start(ctx context.Context, jobName string, params string) (int64, error) {
 	return doStart(ctx, jobName, params, false)
 }
 
-// StartAsync start job by job name and params asynchronously
+// StartAsync initiates a job execution asynchronously with the given job name and parameters.
+// Returns the job execution ID immediately without waiting for completion.
 func StartAsync(ctx context.Context, jobName string, params string) (int64, error) {
 	return doStart(ctx, jobName, params, true)
 }
@@ -114,6 +117,7 @@ func doStart(ctx context.Context, jobName string, params string, async bool) (in
 	}
 }
 
+// Parses job parameters from a JSON string into a map
 func parseJobParams(params string) (map[string]interface{}, error) {
 	ret := make(map[string]interface{})
 	if len(params) == 0 {
@@ -126,7 +130,8 @@ func parseJobParams(params string) (map[string]interface{}, error) {
 	return ret, nil
 }
 
-// Stop stop job by job name or job execution id
+// Stop terminates a running job identified by either job name or execution ID.
+// Returns an error if the job cannot be stopped or doesn't exist.
 func Stop(ctx context.Context, jobId interface{}) error {
 	switch id := jobId.(type) {
 	case string:
@@ -180,12 +185,14 @@ func Stop(ctx context.Context, jobId interface{}) error {
 	return errors.Errorf("job identifier:%v is either job name or job execution id", jobId)
 }
 
-// Restart restart job by job name or job execution id
+// Restart reinitializes a previously executed job identified by job name or execution ID.
+// The job will be executed synchronously.
 func Restart(ctx context.Context, jobId interface{}) (int64, error) {
 	return doRestart(ctx, jobId, false)
 }
 
-// RestartAsync restart job by job name or job execution id asynchronously
+// RestartAsync reinitializes a previously executed job identified by job name or execution ID.
+// The job will be executed asynchronously and returns immediately.
 func RestartAsync(ctx context.Context, jobId interface{}) (int64, error) {
 	return doRestart(ctx, jobId, true)
 }
